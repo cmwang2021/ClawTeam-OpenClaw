@@ -1,8 +1,8 @@
 {
-  "generated": "2026-05-22T06:47:27.013Z",
+  "generated": "2026-05-22T11:55:42.613Z",
   "summary": {
-    "passed": 6,
-    "failed": 0,
+    "passed": 5,
+    "failed": 1,
     "manual": 5,
     "total": 11
   },
@@ -11,85 +11,85 @@
       "id": "t-001-opus-to-nexus",
       "name": "T1: SSH → Nest 2.0",
       "result": "pass",
-      "elapsed_ms": 2885,
+      "elapsed_ms": 13028,
       "evidence_found": true,
-      "output_preview": "shrimp-nexus-01\nup 3 weeks, 6 days, 5 hours, 45 minutes\n",
-      "tested_at": "2026-05-22T06:47:20.812Z"
+      "output_preview": "shrimp-nexus-01\nup 3 weeks, 6 days, 10 hours, 53 minutes\n",
+      "tested_at": "2026-05-22T11:55:18.285Z"
     },
     {
       "id": "t-002-nexus-to-container",
       "name": "T2: Docker → openclaw-runtime",
       "result": "pass",
-      "elapsed_ms": 3072,
+      "elapsed_ms": 4250,
       "evidence_found": true,
       "output_preview": "root\n/home/user/.openclaw/openclaw.json\n",
-      "tested_at": "2026-05-22T06:47:23.884Z"
+      "tested_at": "2026-05-22T11:55:22.536Z"
     },
     {
       "id": "t-003-tailscale-topology",
       "name": "T3: Tailscale topology",
       "result": "pass",
-      "elapsed_ms": 129,
+      "elapsed_ms": 297,
       "evidence_found": true,
       "output_preview": "{\n  \"Version\": \"1.98.2-taaf7caef1-gc4a37aed9\",\n  \"TUN\": true,\n  \"BackendState\": \"Running\",\n  \"HaveNodeKey\": true,\n  \"AuthURL\": \"\",\n  \"TailscaleIPs\": [\n    \"100.83.60.108\",\n    \"fd7a:115c:a1e0::9d01:3c",
-      "tested_at": "2026-05-22T06:47:24.013Z"
+      "tested_at": "2026-05-22T11:55:22.834Z"
     },
     {
       "id": "t-007-firebase-probe",
       "name": "T7: Firebase (abai-01) ping",
-      "result": "pass",
-      "elapsed_ms": 113,
-      "evidence_found": true,
-      "output_preview": "pong from abai-01 (100.83.105.23) via 35.221.236.71:8480 in 18ms\n",
-      "tested_at": "2026-05-22T06:47:24.126Z"
+      "result": "evidence_mismatch",
+      "elapsed_ms": 15012,
+      "evidence_found": false,
+      "output_preview": "ping \"100.83.105.23\" timed out\n",
+      "tested_at": "2026-05-22T11:55:37.846Z"
     },
     {
       "id": "t-008-triple-penetration",
       "name": "T8: Triple penetration (SSH→Docker→workspace)",
       "result": "pass",
-      "elapsed_ms": 2885,
+      "elapsed_ms": 4763,
       "evidence_found": true,
       "output_preview": "$DIARY\nAGENTS.md\nBOOTSTRAP.md\nHEARTBEAT.md\nIDENTITY.md\n",
-      "tested_at": "2026-05-22T06:47:27.011Z"
+      "tested_at": "2026-05-22T11:55:42.609Z"
     },
     {
       "id": "t-009-asset-navigation",
       "name": "T9: Playground asset lookup",
       "result": "pass",
-      "elapsed_ms": 1,
+      "elapsed_ms": 3,
       "evidence_found": true,
       "output_preview": "Asset index loaded: 9 categories, 33 assets. Each has use_when field.",
-      "tested_at": "2026-05-22T06:47:27.012Z"
+      "tested_at": "2026-05-22T11:55:42.612Z"
     },
     {
       "id": "t-004-full-mission-cycle",
       "name": "T4: 需 scp 上傳腳本 (手動三步法)",
       "result": "manual-required",
-      "tested_at": "2026-05-22T06:47:27.013Z"
+      "tested_at": "2026-05-22T11:55:42.613Z"
     },
     {
       "id": "t-005-mc-auth-probe",
       "name": "T5: MC 認證檢查 (需探長確認)",
       "result": "manual-required",
-      "tested_at": "2026-05-22T06:47:27.013Z"
+      "tested_at": "2026-05-22T11:55:42.613Z"
     },
     {
       "id": "t-006-git-sync-probe",
       "name": "T6: Git sync (需 PAT 驗證)",
       "result": "manual-required",
-      "tested_at": "2026-05-22T06:47:27.013Z"
+      "tested_at": "2026-05-22T11:55:42.613Z"
     },
     {
       "id": "t-010-hermes-config-probe",
       "name": "T10: Hermes config (需 wangdaoxiong59 sudo)",
       "result": "manual-required",
-      "tested_at": "2026-05-22T06:47:27.013Z"
+      "tested_at": "2026-05-22T11:55:42.613Z"
     },
     {
       "id": "t-011-nest-interlink-test",
       "name": "T11: 巢間傳送 (Shared Node 單向限制)",
       "result": "manual-required",
-      "tested_at": "2026-05-22T06:47:27.013Z"
+      "tested_at": "2026-05-22T11:55:42.613Z"
     }
   ]
 }

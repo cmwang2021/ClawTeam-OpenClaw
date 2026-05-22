@@ -1,14 +1,14 @@
 {
-  "generated": "2026-05-22T06:39:04.053Z",
+  "generated": "2026-05-22T11:57:40.289Z",
   "thresholds": {
     "fresh": 3,
     "aging": 7
   },
   "summary": {
-    "fresh": 21,
+    "fresh": 22,
     "aging": 0,
     "stale": 0,
-    "never": 1
+    "never": 2
   },
   "entities": [
     {
@@ -155,6 +155,18 @@
       "days": 0,
       "level": "Fresh",
       "result": "fail"
+    },
+    {
+      "id": "t-012-mc-auth-reset",
+      "days": 0,
+      "level": "Fresh",
+      "result": "pass"
+    },
+    {
+      "id": "t-013-mc-photography",
+      "days": null,
+      "level": "Never",
+      "result": "untested"
     }
   ]
 }
