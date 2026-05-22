@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ShrimpClan World Map Schema v1.0",
+  "description": "AI Agent 專用的蝦家班世界地圖 — 以接點為座標的行動底圖",
+  "version": "1.0.0",
+  "created": "2026-05-22",
+  "authors": ["探長 (Inspector)", "蝦皮總監 (Perplexity)", "Opus (Antigravity)"],
+
+  "definitions": {
+    "world": {
+      "type": "object",
+      "required": ["world_id", "world_type", "runtime", "trust_level", "persistence"],
+      "properties": {
+        "world_id":    { "type": "string", "description": "唯一識別碼" },
+        "world_type":  { "type": "string", "enum": ["physical-network", "container-runtime", "conversation-runtime", "tool-runtime", "sandbox-runtime", "virtual-world"] },
+        "runtime":     { "type": "string", "description": "底層環境描述 (e.g. Linux, Docker, Telegram, Minecraft)" },
+        "trust_level": { "type": "string", "enum": ["high", "medium", "low", "untrusted"] },
+        "persistence": { "type": "string", "enum": ["persistent", "ephemeral", "conditional"], "description": "環境是否持久存在" },
+        "notes":       { "type": "string" }
+      }
+    },
+
+    "entity": {
+      "type": "object",
+      "required": ["entity_id", "entity_type", "name", "world_id", "owner"],
+      "properties": {
+        "entity_id":     { "type": "string", "description": "唯一識別碼" },
+        "entity_type":   { "type": "string", "enum": ["host", "agent", "role", "tool", "account"] },
+        "name":          { "type": "string", "description": "顯示名稱" },
+        "world_id":      { "type": "string", "description": "主要駐紮的 world" },
+        "owner":         { "type": "string", "description": "歸屬人/組織" },
+        "description":   { "type": "string" },
+        "status":        { "type": "string", "enum": ["online", "offline", "unknown", "dormant"] },
+        "last_verified": { "type": "string", "format": "date-time", "description": "最後一次驗證時間" },
+        "identity_chain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "身份鏈 — 記錄帳號/角色的繼承與影子關係"
+        }
+      }
+    },
+
+    "junction": {
+      "type": "object",
+      "required": ["junction_id", "display_name", "source_world", "target_world", "entry_method", "auth_mode"],
+      "properties": {
+        "junction_id":   { "type": "string" },
+        "display_name":  { "type": "string" },
+        "source_world":  { "type": "string" },
+        "target_world":  { "type": "string" },
+        "entry_method":  { "type": "string", "enum": ["ssh", "docker-exec", "tailscale", "api", "cli", "chat-command", "portal", "browser", "webhook", "game-protocol"] },
+        "entry_command": { "type": "string", "description": "實際進入指令或 URL" },
+        "auth_mode":     { "type": "string", "enum": ["key", "oauth", "tailscale-acl", "token", "manual-approval", "none"] },
+        "sandbox_level": { "type": "string", "enum": ["unrestricted", "limited", "strict", "air-gapped"] },
+        "allowed_actions": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["read", "write", "exec", "deploy", "observe", "chat"] }
+        },
+        "human_intervention_required": { "type": "boolean", "description": "是否需要人類介入" },
+        "intervention_desc": { "type": "string", "description": "需要人類介入時的說明" },
+        "cooldown_seconds":  { "type": "integer", "description": "失敗後重試前的冷卻時間 (秒)", "default": 0 },
+        "notes": { "type": "string" }
+      }
+    },
+
+    "capability": {
+      "type": "object",
+      "required": ["capability_id", "entity_id", "action", "scope"],
+      "properties": {
+        "capability_id":   { "type": "string" },
+        "entity_id":       { "type": "string" },
+        "action":          { "type": "string", "description": "具體動作 (e.g. write-script, deploy-container, search-web)" },
+        "scope":           { "type": "string", "description": "作用範圍 (e.g. workspace, repo, conversation)" },
+        "permission_level": { "type": "string", "enum": ["read", "write", "exec", "admin"] },
+        "rate_limit":      { "type": "string", "description": "速率限制 (e.g. 1000 req/day, unlimited)" }
+      }
+    },
+
+    "transition": {
+      "type": "object",
+      "required": ["transition_id", "actor_id", "from_entity", "via_junction", "to_entity", "intended_action", "evidence_type"],
+      "properties": {
+        "transition_id":    { "type": "string" },
+        "actor_id":         { "type": "string", "description": "執行移動的 Agent / 角色" },
+        "from_entity":      { "type": "string", "description": "出發點 entity_id" },
+        "via_junction":     { "type": "string", "description": "使用的接點 junction_id" },
+        "to_entity":        { "type": "string", "description": "目標 entity_id" },
+        "intended_action":  { "type": "string", "description": "到達後要做什麼" },
+        "evidence_type":    { "type": "string", "enum": ["file", "stdout", "log", "screenshot", "state_diff", "game_event", "api_response"] },
+        "evidence_path":    { "type": "string", "description": "證據的預期路徑或格式" },
+        "fallback_route":   { "type": "string", "description": "失敗時的退路 (junction_id 或描述)" },
+        "risk_level":       { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "last_tested":      { "type": "string", "format": "date-time" },
+        "test_result":      { "type": "string", "enum": ["pass", "fail", "partial", "untested"] }
+      }
+    }
+  }
+}

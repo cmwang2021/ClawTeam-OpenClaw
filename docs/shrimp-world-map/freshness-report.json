@@ -1,0 +1,160 @@
+{
+  "generated": "2026-05-22T06:39:04.053Z",
+  "thresholds": {
+    "fresh": 3,
+    "aging": 7
+  },
+  "summary": {
+    "fresh": 21,
+    "aging": 0,
+    "stale": 0,
+    "never": 1
+  },
+  "entities": [
+    {
+      "id": "e-hp-matrix",
+      "name": "HP-Matrix (探長本地)",
+      "days": 0,
+      "level": "Fresh",
+      "status": "online"
+    },
+    {
+      "id": "e-shrimp-nexus-01",
+      "name": "Shrimp-Nexus-01 (母艦 Nest 2.0)",
+      "days": 0,
+      "level": "Fresh",
+      "status": "online"
+    },
+    {
+      "id": "e-openclaw-node",
+      "name": "OpenClaw Node (Nest 1.0 蝦馬仕)",
+      "days": 0,
+      "level": "Fresh",
+      "status": "online"
+    },
+    {
+      "id": "e-abai-01",
+      "name": "A-Bai 01 (阿百1號 蝦工坊 / Shrimp-Workshop)",
+      "days": 0,
+      "level": "Fresh",
+      "status": "online"
+    },
+    {
+      "id": "e-opus",
+      "name": "Opus (Antigravity Agent)",
+      "days": 0,
+      "level": "Fresh",
+      "status": "online"
+    },
+    {
+      "id": "e-flash",
+      "name": "Flash (Gemini 3.5 Flash)",
+      "days": 0,
+      "level": "Fresh",
+      "status": "online"
+    },
+    {
+      "id": "e-abai-main",
+      "name": "阿百館長 (A-Bai Main Agent)",
+      "days": 0,
+      "level": "Fresh",
+      "status": "online"
+    },
+    {
+      "id": "e-hermes",
+      "name": "蝦馬仕 (Hermes Agent)",
+      "days": 0,
+      "level": "Fresh",
+      "status": "online"
+    },
+    {
+      "id": "e-xiapi",
+      "name": "蝦皮業務總監 (Perplexity)",
+      "days": 0,
+      "level": "Fresh",
+      "status": "online"
+    },
+    {
+      "id": "e-piziwei",
+      "name": "Piziwei (Minecraft 肉身)",
+      "days": null,
+      "level": "Never",
+      "status": "unknown"
+    },
+    {
+      "id": "e-playground",
+      "name": "Playground 資產庫 (核心軍火庫)",
+      "days": 0,
+      "level": "Fresh",
+      "status": "online"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "t-001-opus-to-nexus",
+      "days": 0,
+      "level": "Fresh",
+      "result": "pass"
+    },
+    {
+      "id": "t-002-nexus-to-container",
+      "days": 0,
+      "level": "Fresh",
+      "result": "pass"
+    },
+    {
+      "id": "t-003-tailscale-topology",
+      "days": 0,
+      "level": "Fresh",
+      "result": "pass"
+    },
+    {
+      "id": "t-004-full-mission-cycle",
+      "days": 0,
+      "level": "Fresh",
+      "result": "pass"
+    },
+    {
+      "id": "t-005-mc-auth-probe",
+      "days": 0,
+      "level": "Fresh",
+      "result": "pass"
+    },
+    {
+      "id": "t-006-git-sync-probe",
+      "days": 0,
+      "level": "Fresh",
+      "result": "pass"
+    },
+    {
+      "id": "t-007-firebase-probe",
+      "days": 0,
+      "level": "Fresh",
+      "result": "pass"
+    },
+    {
+      "id": "t-008-triple-penetration",
+      "days": 0,
+      "level": "Fresh",
+      "result": "pass"
+    },
+    {
+      "id": "t-009-asset-navigation",
+      "days": 0,
+      "level": "Fresh",
+      "result": "pass"
+    },
+    {
+      "id": "t-010-hermes-config-probe",
+      "days": 0,
+      "level": "Fresh",
+      "result": "partial"
+    },
+    {
+      "id": "t-011-nest-interlink-test",
+      "days": 0,
+      "level": "Fresh",
+      "result": "fail"
+    }
+  ]
+}

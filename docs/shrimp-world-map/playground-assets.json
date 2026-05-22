@@ -1,0 +1,335 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "generated": "2026-05-22T13:41:00+08:00",
+    "generated_by": "Opus (Antigravity)",
+    "description": "Playground 目錄資產索引 — 蝦家班與協作 Agent (Opus, Perplexity, Flash, Claude Code) 的核心共同成果",
+    "root_path": "c:/Users/ellio/Code/cursor/Playground",
+    "world_id": "w-playground-assets"
+  },
+
+  "categories": [
+    {
+      "category_id": "cat-infrastructure",
+      "name": "🏗️ 基礎設施與路由",
+      "description": "網路路由、代理轉發、部署工具",
+      "assets": [
+        {
+          "asset_id": "a-9router",
+          "name": "9Router",
+          "path": "9router/",
+          "type": "project",
+          "description": "蝦家班核心路由器，API 代理轉發與模型負載均衡。v4 production-grade。",
+          "use_when": "需要切換 AI 模型路由、管理 API quota、或除錯模型連線問題時"
+        },
+        {
+          "asset_id": "a-9router-core",
+          "name": "shrimp-9router-core",
+          "path": "shrimp-9router-core/",
+          "type": "project",
+          "description": "9Router 的精煉核心模組，包含 RTK 與 Caveman 元件。",
+          "use_when": "需要修改路由核心邏輯或進行架構分析時"
+        },
+        {
+          "asset_id": "a-shrimp-router-core",
+          "name": "shrimp-router-core",
+          "path": "shrimp-router-core/",
+          "type": "project",
+          "description": "路由器核心的另一份演化版本。",
+          "use_when": "比較路由器不同版本差異時"
+        },
+        {
+          "asset_id": "a-vertex-proxy",
+          "name": "Vertex AI 相關工具",
+          "path": "vertex-ai-search/ + vertex_model_probe.py + vertex-adc-test.sh",
+          "type": "toolkit",
+          "description": "Vertex AI 搜索整合、模型探針與 ADC 認證測試腳本。",
+          "use_when": "需要測試 Vertex AI 連線、模型可用性、或 ADC 認證問題時"
+        }
+      ]
+    },
+    {
+      "category_id": "cat-openclaw",
+      "name": "🦞 OpenClaw 生態系",
+      "description": "OpenClaw Agent 框架、擴展、與部署工具",
+      "assets": [
+        {
+          "asset_id": "a-clawteam-openclaw",
+          "name": "ClawTeam-OpenClaw",
+          "path": "ClawTeam-OpenClaw/",
+          "type": "project",
+          "description": "OpenClaw 主代碼庫 (fork)，對應遠端 cmwang2021/ClawTeam-OpenClaw。",
+          "use_when": "需要修改 OpenClaw 核心功能、提交 PR、或審查代碼變更時"
+        },
+        {
+          "asset_id": "a-openclaw-a2a",
+          "name": "openclaw-a2a-gateway",
+          "path": "openclaw-a2a-gateway/",
+          "type": "project",
+          "description": "Agent-to-Agent 通訊閘道，負責跨 Agent 對話協調。",
+          "use_when": "需要建立或除錯 Agent 之間的通訊管道時"
+        },
+        {
+          "asset_id": "a-efficient-context",
+          "name": "openclaw-efficient-context-skill",
+          "path": "openclaw-efficient-context-skill/",
+          "type": "skill",
+          "description": "高效上下文管理技能，減少 token 消耗。",
+          "use_when": "Agent 上下文過長需要壓縮，或需要最佳化 token 使用時"
+        },
+        {
+          "asset_id": "a-claw-code",
+          "name": "claw-code",
+          "path": "claw-code/",
+          "type": "project",
+          "description": "OpenClaw 相關的程式碼工具或分支。",
+          "use_when": "需要 OpenClaw 程式碼層面的工具或修改時"
+        }
+      ]
+    },
+    {
+      "category_id": "cat-products",
+      "name": "💰 One Dollar 產品線",
+      "description": "可變現的產品與工具包",
+      "assets": [
+        {
+          "asset_id": "a-jsonguard",
+          "name": "shrimp-jsonguard",
+          "path": "shrimp-jsonguard/",
+          "type": "product",
+          "description": "JSONGuard v1.4 — 零依賴 JSON 修復引擎，已通過對抗性輸入硬化。",
+          "use_when": "需要修復損壞的 JSON、或作為 $1 SKU 產品進行打包上架時"
+        },
+        {
+          "asset_id": "a-pain-points",
+          "name": "openclaw-pain-points",
+          "path": "openclaw-pain-points/",
+          "type": "product",
+          "description": "痛點商店 — 記錄已識別的開發者痛點與對應解決方案（產品上架所在地）。",
+          "use_when": "需要查找已記錄的痛點、或準備新產品上架時"
+        },
+        {
+          "asset_id": "a-shrimp-hub",
+          "name": "shrimp-hub",
+          "path": "shrimp-hub/",
+          "type": "project",
+          "description": "蝦家班的集散中心或展示平台。",
+          "use_when": "需要管理蝦家班對外展示或產品集散時"
+        },
+        {
+          "asset_id": "a-shrimp-hud",
+          "name": "shrimp-hud-review",
+          "path": "shrimp-hud-review/",
+          "type": "project",
+          "description": "Shrimp HUD — 9Router v4 效能監控 Dashboard (React/Vite)。已完成 production-grade code review。",
+          "use_when": "需要監控 9Router 效能、或作為 HUD 範本進行展示時"
+        }
+      ]
+    },
+    {
+      "category_id": "cat-skills",
+      "name": "🛠️ Agent 技能庫",
+      "description": "可被 AI Agent 直接載入使用的 SKILL 擴展包",
+      "path": "skills/",
+      "total_skills": 26,
+      "key_skills": [
+        {
+          "asset_id": "a-skill-firebase",
+          "name": "firebase-studio-connect",
+          "description": "SSH/SFTP/rsync 連接 Firebase Studio 工作區。",
+          "use_when": "需要從 hp-matrix 連入 Firebase Studio (abai-01) 進行檔案傳輸時"
+        },
+        {
+          "asset_id": "a-skill-migration",
+          "name": "migration-master",
+          "description": "蝦家班大遷徙自動化部署。Nest 1.0 → Nest 2.0。",
+          "use_when": "需要在新 VM 上部署完整 OpenClaw + Agent 堆疊時"
+        },
+        {
+          "asset_id": "a-skill-sandbox-audit",
+          "name": "sandbox-boundary-audit",
+          "description": "驗證 sub-agent 是否真的在指定 sandbox 內執行。",
+          "use_when": "懷疑 Agent 任務洩漏到宿主機、或需要進行 sandbox 邊界鑑識時"
+        },
+        {
+          "asset_id": "a-skill-qa",
+          "name": "qa-testing",
+          "description": "自動化 QA 測試框架，驗證 LLM 模型與 API 端點。",
+          "use_when": "需要驗證新模型、Tool Call 能力、或進行 API 端點校驗時"
+        },
+        {
+          "asset_id": "a-skill-trace",
+          "name": "trace-auditor",
+          "description": "PL v3 Trace Auditor — 驗證 trace data 的 schema 合規性。",
+          "use_when": "需要審計 trace 資料、檢查語義契約合規時"
+        },
+        {
+          "asset_id": "a-skill-webapp-test",
+          "name": "webapp-testing",
+          "description": "Playwright 自動化 Web 測試框架。",
+          "use_when": "需要自動化測試前端 UI、截圖驗證、或除錯瀏覽器行為時"
+        }
+      ]
+    },
+    {
+      "category_id": "cat-operations",
+      "name": "⚙️ 運維與腳本",
+      "description": "部署、監控、維護用的工具腳本",
+      "assets": [
+        {
+          "asset_id": "a-scripts",
+          "name": "scripts/",
+          "path": "scripts/",
+          "type": "toolkit",
+          "description": "核心運維腳本集：claw-radar.js (Agent 診斷雷達)、key_manager.py (密鑰管理)、shrimp-gitops-driver.js (GitOps 自動化)。",
+          "use_when": "需要 Agent 健康檢查、密鑰輪換、或 GitOps 部署時",
+          "files": [
+            {"name": "claw-radar.js", "purpose": "Agent 模型目錄與健康診斷雷達"},
+            {"name": "key_manager.py", "purpose": "API 密鑰管理與輪換"},
+            {"name": "shrimp-gitops-driver.js", "purpose": "GitOps 自動化推送驅動"}
+          ]
+        },
+        {
+          "asset_id": "a-night-watcher",
+          "name": "night-watcher",
+          "path": "night-watcher/",
+          "type": "project",
+          "description": "夜間值守監控系統。",
+          "use_when": "需要 24/7 無人值守監控或警報時"
+        },
+        {
+          "asset_id": "a-upload-door",
+          "name": "upload_door",
+          "path": "upload_door/",
+          "type": "toolkit",
+          "description": "檔案上傳閘門工具。",
+          "use_when": "需要安全上傳檔案到目標環境時"
+        },
+        {
+          "asset_id": "a-secrets",
+          "name": "secrets_registry.json",
+          "path": "secrets_registry.json",
+          "type": "config",
+          "description": "⚠️ 機密登記簿 — API keys、tokens 的集中登記。",
+          "use_when": "需要查找或更新 API 密鑰時。⚠️ 高敏感，僅探長可操作。"
+        }
+      ]
+    },
+    {
+      "category_id": "cat-knowledge",
+      "name": "📚 知識與研究",
+      "description": "情報、研究成果、記憶蒸餾",
+      "assets": [
+        {
+          "asset_id": "a-knowledge",
+          "name": "knowledge/",
+          "path": "knowledge/shrimp-evolution-dna/",
+          "type": "research",
+          "description": "蝦家班演化 DNA — 記錄團隊演化歷程與決策脈絡。",
+          "use_when": "需要回溯蝦家班歷史決策、演化軌跡、或進行記憶蒸餾時"
+        },
+        {
+          "asset_id": "a-perplexity",
+          "name": "perplexity/",
+          "path": "perplexity/",
+          "type": "research",
+          "description": "蝦皮總監 (Perplexity) 的研究產出與情報檔案。",
+          "use_when": "需要查閱蝦皮的歷史研究、競品分析、或商業情報時"
+        },
+        {
+          "asset_id": "a-self-improvement",
+          "name": "self-improvement/",
+          "path": "self-improvement/",
+          "type": "research",
+          "description": "Agent 自我改良紀錄與方法論。",
+          "use_when": "需要參考過去的 Agent 能力提升策略或改良實驗時"
+        },
+        {
+          "asset_id": "a-ai-recall",
+          "name": "ai-recall-poc",
+          "path": "ai-recall-poc/",
+          "type": "research",
+          "description": "AI 記憶召回 PoC — 研究如何讓 Agent 更有效地回憶過去經驗。",
+          "use_when": "需要改善 Agent 長期記憶或跨 session 資訊保留時"
+        },
+        {
+          "asset_id": "a-openspec",
+          "name": "OpenSpec",
+          "path": "OpenSpec/",
+          "type": "framework",
+          "description": "OpenSpec-Driven Automation (OSDA) 框架 — 規格驅動的自動化工作流。",
+          "use_when": "需要以規格文件驅動 Agent 任務、或建立標準化的自動化 SOP 時"
+        }
+      ]
+    },
+    {
+      "category_id": "cat-minecraft",
+      "name": "🎮 Minecraft 專區",
+      "description": "Minecraft 相關的認證、地圖、與具身智能",
+      "assets": [
+        {
+          "asset_id": "a-mc-auth",
+          "name": "SPEC-MC-001-Shrimp-Auth-v1",
+          "path": "minecraft/SPEC-MC-001-Shrimp-Auth-v1/",
+          "type": "project",
+          "description": "Minecraft 無頭自動登入規格 — Device Code Flow + Token 快照。",
+          "use_when": "需要實作或除錯 Minecraft 帳號自動登入時"
+        },
+        {
+          "asset_id": "a-world-map",
+          "name": "shrimp-world-map",
+          "path": "minecraft/shrimp-world-map/",
+          "type": "framework",
+          "description": "本文件 — 蝦家班世界地圖，AI Agent 行動底圖。",
+          "use_when": "Agent 需要知道自己在哪、能去哪、怎麼去、有什麼工具可用時"
+        }
+      ]
+    },
+    {
+      "category_id": "cat-gemini",
+      "name": "🔧 Gemini CLI 工具",
+      "description": "Gemini CLI 相關的客製化與部署",
+      "assets": [
+        {
+          "asset_id": "a-gemini-cli",
+          "name": "gemini-cli",
+          "path": "gemini-cli/",
+          "type": "project",
+          "description": "Gemini CLI 原版或參考副本。",
+          "use_when": "需要查看 Gemini CLI 原始碼或比對版本差異時"
+        },
+        {
+          "asset_id": "a-shrimp-gemini",
+          "name": "shrimp-gemini-cli",
+          "path": "shrimp-gemini-cli/",
+          "type": "project",
+          "description": "蝦家班客製 Gemini CLI (蝦小刀) — 含 patch 的蝦家班專用版。",
+          "use_when": "需要部署蝦小刀、或修改 Gemini CLI 客製功能時"
+        }
+      ]
+    },
+    {
+      "category_id": "cat-experimental",
+      "name": "🧪 實驗區",
+      "description": "開發中或概念驗證階段的專案",
+      "assets": [
+        {
+          "asset_id": "a-hammer9",
+          "name": "SHRIMP-HAMMER-9",
+          "path": "SHRIMP-HAMMER-9/",
+          "type": "experimental",
+          "description": "蝦家班九號錘 — 實驗性工具或專案。",
+          "use_when": "探索性任務或需要原型驗證時"
+        },
+        {
+          "asset_id": "a-ticket-nexus",
+          "name": "ticket-nexus",
+          "path": "ticket-nexus/",
+          "type": "experimental",
+          "description": "工單管理系統。",
+          "use_when": "需要追蹤工單或任務管理時"
+        }
+      ]
+    }
+  ]
+}

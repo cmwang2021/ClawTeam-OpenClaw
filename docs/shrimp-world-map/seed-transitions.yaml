@@ -1,0 +1,246 @@
+# 蝦家班世界地圖 — Seed Transitions v1.0
+# 這是 Flash (Gemini 3.5 Flash) 路徑演練的測試用例
+# 每條 Transition 都必須產出 evidence，不接受口頭完成
+# Generated: 2026-05-22 by Opus (Antigravity)
+
+transitions:
+
+  # ═══════════════════════════════════════════════════════
+  # T1: 最基礎的路徑 — 從探長電腦進入蝦窩
+  # ═══════════════════════════════════════════════════════
+  - transition_id: "t-001-opus-to-nexus"
+    actor_id: "e-opus"
+    from_entity: "e-hp-matrix"
+    via_junction: "j-antigravity-to-ssh"
+    to_entity: "e-shrimp-nexus-01"
+    intended_action: "確認母艦狀態：hostname, uptime, disk usage, docker ps"
+    evidence_type: "stdout"
+    evidence_path: "ssh command output containing hostname=shrimp-nexus-01"
+    fallback_route: "探長手動 SSH 後貼回結果"
+    risk_level: "low"
+    last_tested: "2026-05-22T12:20:27+08:00"
+    test_result: "pass"
+    notes: "Phase 0 已驗證通過。pong via DERP(ord), SSH 成功, hostname=shrimp-nexus-01, uptime 27d"
+
+  # ═══════════════════════════════════════════════════════
+  # T2: 進入蝦窩後穿透到 OpenClaw 容器
+  # ═══════════════════════════════════════════════════════
+  - transition_id: "t-002-nexus-to-container"
+    actor_id: "e-opus"
+    from_entity: "e-shrimp-nexus-01"
+    via_junction: "j-docker-exec-xiaren"
+    to_entity: "e-abai-main"
+    intended_action: "確認阿百館長容器狀態 (openclaw-runtime)：容器內 whoami, ls /home/user/.openclaw/, openclaw.json 存在性"
+    evidence_type: "stdout"
+    evidence_path: "docker exec openclaw-runtime output showing /home/user/.openclaw/ contents"
+    fallback_route: "若容器不存在，檢查 docker ps -a 並回報"
+    risk_level: "low"
+    last_tested: "2026-05-22T13:20:00+08:00"
+    test_result: "pass"
+    notes: "已驗證：容器名為 openclaw-runtime (非 openclaw-xiaren)。Status: Up 3 weeks (healthy)。whoami=root/user，/home/user/.openclaw/ 含完整目錄結構。原 yaml 定義為 /root/.openclaw/，經測試已更正為實際路徑 /home/user/.openclaw/。"
+
+  # ═══════════════════════════════════════════════════════
+  # T3: Tailscale 網路拓撲掃描
+  # ═══════════════════════════════════════════════════════
+  - transition_id: "t-003-tailscale-topology"
+    actor_id: "e-opus"
+    from_entity: "e-hp-matrix"
+    via_junction: "j-tailscale-mesh"
+    to_entity: "e-hp-matrix"
+    intended_action: "產出完整的 Tailscale 網路拓撲快照：所有節點 IP、狀態、所屬 tailnet"
+    evidence_type: "stdout"
+    evidence_path: "tailscale status output"
+    fallback_route: "N/A (本地指令)"
+    risk_level: "low"
+    last_tested: "2026-05-22T12:20:00+08:00"
+    test_result: "pass"
+    notes: "Phase 0 已驗證。8 個節點，3 個 online，5 個 offline。主網/實驗網 shared node 確認。"
+
+  # ═══════════════════════════════════════════════════════
+  # T4: 跨層複合路徑 — 對話世界 → 母艦 → 寫腳本 → 回傳結果
+  # ═══════════════════════════════════════════════════════
+  - transition_id: "t-004-full-mission-cycle"
+    actor_id: "e-opus"
+    from_entity: "e-hp-matrix"
+    via_junction: "j-antigravity-to-ssh"
+    to_entity: "e-shrimp-nexus-01"
+    intended_action: "在母艦上建立 /tmp/world-map-probe.sh 探針腳本，執行後回傳系統摘要 (hostname, kernel, docker version, disk, memory)"
+    evidence_type: "file"
+    evidence_path: "/tmp/world-map-probe.sh + stdout execution result"
+    fallback_route: "直接用一行 SSH 命令替代腳本"
+    risk_level: "medium"
+    last_tested: "2026-05-22T13:20:00+08:00"
+    test_result: "pass"
+    notes: "已由 Agent 成功驗證。提示：在 Windows Host 上執行時，透過 PowerShell 傳遞多行 ssh cat 語法極易發生變數與引號衝突。最佳實踐是先以 write_to_file 寫入本地，再以 scp 上傳至 /tmp/world-map-probe.sh 後執行，可 100% 成功。"
+
+  # ═══════════════════════════════════════════════════════
+  # T5: 虛擬世界接點 — 確認 Minecraft 認證管道狀態
+  # ═══════════════════════════════════════════════════════
+  - transition_id: "t-005-mc-auth-probe"
+    actor_id: "e-opus"
+    from_entity: "e-hp-matrix"
+    via_junction: "j-viaproxy-mc"
+    to_entity: "e-piziwei"
+    intended_action: "確認 ViaProxy 設定檔案與 saves.json 認證 Token 是否存在（不嘗試實際連線）"
+    evidence_type: "file"
+    evidence_path: "ViaProxy config file path + saves.json existence check"
+    fallback_route: "探長手動確認檔案路徑"
+    risk_level: "low"
+    last_tested: "2026-05-22T13:25:00+08:00"
+    test_result: "pass"
+    notes: "已驗證：在 viaproxy/ 子目錄下存在已驗證的 saves.json（大小約 14.7KB），內含 Piziwei7271 的微軟 OAuth Token 資訊。但專案根目錄下的 saves.json 為空（25 B），viaproxy.yml 預設為 NONE 模式。final_launch_v5b.js 會正確指向子目錄 saves.json。"
+
+  # ═══════════════════════════════════════════════════════
+  # T6: Git 代碼同步接點
+  # ═══════════════════════════════════════════════════════
+  - transition_id: "t-006-git-sync-probe"
+    actor_id: "e-opus"
+    from_entity: "e-hp-matrix"
+    via_junction: "j-git-sync"
+    to_entity: "e-hp-matrix"
+    intended_action: "確認 shrimpclan-ark repo 的 remote 配置與最後同步狀態"
+    evidence_type: "stdout"
+    evidence_path: "git remote -v + git log -1 output"
+    fallback_route: "N/A"
+    risk_level: "low"
+    last_tested: "2026-05-22T13:30:00+08:00"
+    test_result: "pass"
+    notes: "已驗證：本地 git 目錄為 ClawTeam-OpenClaw，對應遠端 cmwang2021/ClawTeam-OpenClaw。最後一次 commit 為 Merge pull request #26 from AliceLJY/feat/shared-memory-scope。"
+
+  # ═══════════════════════════════════════════════════════
+  # T7: 蝦工坊接點 — Firebase Studio 可達性
+  # ═══════════════════════════════════════════════════════
+  - transition_id: "t-007-firebase-probe"
+    actor_id: "e-opus"
+    from_entity: "e-hp-matrix"
+    via_junction: "j-firebase-entry"
+    to_entity: "e-abai-01"
+    intended_action: "Tailscale ping abai-01 確認是否可達"
+    evidence_type: "stdout"
+    evidence_path: "tailscale ping 100.83.105.23 output"
+    fallback_route: "標記為 dormant，留待探長手動啟動 Firebase Studio"
+    risk_level: "low"
+    last_tested: "2026-05-22T13:15:00+08:00"
+    test_result: "pass"
+    notes: "已驗證：abai-01 (100.83.105.23) 在線，以 tailscale ping 成功 pong 響應，且在數秒內成功建立 P2P 直連（35.221.236.71:8480）。"
+
+  # ═══════════════════════════════════════════════════════
+  # T8: 三層穿透 — 對話→SSH→Docker→容器內指令
+  # ═══════════════════════════════════════════════════════
+  - transition_id: "t-008-triple-penetration"
+    actor_id: "e-opus"
+    from_entity: "e-hp-matrix"
+    via_junction: "j-antigravity-to-ssh + j-docker-exec-xiaren"
+    to_entity: "e-abai-main"
+    intended_action: "從對話世界出發，SSH 進入母艦，再 docker exec 進入阿百容器，在容器內執行指令確認 workspace 完整性"
+    evidence_type: "stdout"
+    evidence_path: "容器內 whoami + hostname + /home/user/.openclaw/workspace/ 檔案列表"
+    fallback_route: "拆成 T1 + T2 兩步分別執行"
+    risk_level: "low"
+    last_tested: "2026-05-22T14:21:24+08:00"
+    test_result: "pass"
+    notes: "三層穿透完美通過。容器 hostname=9639b57d490f, whoami=root。workspace 包含完整蝦家班文件：IDENTITY.md, MEMORY.md, OPERATIONAL_DNA.md, SHRIMP_CLAN_DIARY.md 等。agents/ 下有 main 和 tester 兩個 agent。這是蝦家班最核心的作戰路徑。"
+
+  # ═══════════════════════════════════════════════════════
+  # T9: 資產導航 — 查詢 Playground 軍火庫
+  # ═══════════════════════════════════════════════════════
+  - transition_id: "t-009-asset-navigation"
+    actor_id: "e-opus"
+    from_entity: "e-hp-matrix"
+    via_junction: "j-playground-lookup"
+    to_entity: "e-playground"
+    intended_action: "根據任務需求關鍵字查詢 playground-assets.json，定位最合適的工具/技能"
+    evidence_type: "stdout"
+    evidence_path: "查詢結果包含 category, asset name, use_when"
+    fallback_route: "直接 list_dir Playground 目錄手動查找"
+    risk_level: "low"
+    last_tested: "2026-05-22T14:23:42+08:00"
+    test_result: "pass"
+    notes: "資產導航完美通過。測試查詢 'sandbox' → 精確命中 sandbox-boundary-audit (Agent 技能庫)。33 個資產、9 大分類均可被程式化檢索。use_when 欄位讓 Agent 能根據任務語義自動定位工具。"
+
+  # ═══════════════════════════════════════════════════════
+  # T10: 跨巢偵察 — 確認蝦馬仕 Hermes config
+  # ═══════════════════════════════════════════════════════
+  - transition_id: "t-010-hermes-config-probe"
+    actor_id: "e-opus"
+    from_entity: "e-hp-matrix"
+    via_junction: "j-ssh-to-openclaw"
+    to_entity: "e-hermes"
+    intended_action: "SSH 進入 Nest 1.0，讀取 /root/.hermes/config.yaml 確認蝦馬仕配置"
+    evidence_type: "stdout"
+    evidence_path: "config.yaml 前 25 行內容"
+    fallback_route: "透過 Nest 2.0 root SSH 跳板進入 (j-nest-interlink)"
+    risk_level: "medium"
+    last_tested: "2026-05-22T14:33:00+08:00"
+    test_result: "partial"
+    notes: |
+      探長實測確認：
+      1. ssh user@openclaw ✅ 可登入（NixOS sandbox 模擬環境，預設無 sudo）。
+      2. ssh wangdaoxiong59@openclaw ✅ 可登入（此帳號有 sudo 權限，是歷史慣用登入方式）。
+      3. /root/.hermes/config.yaml 需 root 權限才能讀取 → 必須用 wangdaoxiong59 帳號 sudo 存取。
+      結論：SSH 接點正常，權限路徑確認為 wangdaoxiong59 → sudo → cat /root/.hermes/config.yaml。
+      Opus 先前 timeout 可能是 ConnectTimeout 設太短或 Tailscale 路由延遲。
+
+  # ═══════════════════════════════════════════════════════
+  # T11: 巢間傳送 — Nest 2.0 root SSH → Nest 1.0
+  # ═══════════════════════════════════════════════════════
+  - transition_id: "t-011-nest-interlink-test"
+    actor_id: "e-opus"
+    from_entity: "e-shrimp-nexus-01"
+    via_junction: "j-nest-interlink"
+    to_entity: "e-openclaw-node"
+    intended_action: "從 Nest 2.0 以 root SSH 免密連入 Nest 1.0，驗證巢間傳送通道"
+    evidence_type: "stdout"
+    evidence_path: "Nest 1.0 hostname + whoami=root"
+    fallback_route: "改由 hp-matrix 直接 SSH 到各 Nest"
+    risk_level: "medium"
+    last_tested: "2026-05-22T14:33:00+08:00"
+    test_result: "fail"
+    notes: |
+      ⚠️ Tailscale Shared Node 單向可視特性（by design，非 bug）：
+      - Shared Node 只有被分享到的使用者網路可看見該節點。
+      - 被 tag 的 Machine 本身看不到分享者網路的其他節點。
+      即：hp-matrix (piziwei.wang@) 能看到 shrimp-nexus-01 (shrimpclan.ai@ shared)，
+      但 shrimp-nexus-01 無法反向看到 piziwei.wang@ 下的 openclaw 節點。
+      巢間互通方案：
+      1. 將 openclaw 也加入 shrimpclan.ai@ tailnet，或
+      2. 一律以 hp-matrix 作為跳板中繼（hp-matrix → Nest 1.0 / Nest 2.0 分別 SSH）。
+
+  # ═══════════════════════════════════════════════════════
+  # T12: MC 認證管道前置 — ViaProxy 認證復位與驗證
+  # ═══════════════════════════════════════════════════════
+  - transition_id: "t-012-mc-auth-reset"
+    actor_id: "e-opus"
+    from_entity: "e-shrimp-nexus-01"
+    via_junction: "j-viaproxy-mc"
+    to_entity: "e-piziwei"
+    intended_action: "清除過期 mc-auth-cache-java/，探長完成 MSA Device Code 認證，確認 saves.json 與 ViaProxy 配置就緒"
+    evidence_type: "stdout"
+    evidence_path: "saves.json 大小 + auth-method=ACCOUNT + cache 目錄乾淨"
+    fallback_route: "探長手動認證並回報"
+    risk_level: "medium"
+    last_tested: "2026-05-22T15:51:56+08:00"
+    test_result: "pass"
+    notes: |
+      ✅ 三步驟完成：
+      1. Opus 清除 final-build/ 和 opus-payload-v2/ 下共 6 個過期 cache (042ce2_*.json)。
+      2. 探長完成 MSA Device Code Flow 認證（代碼 6FW2BV2Q）。
+      3. 驗證：saves.json=14742B, auth-method=ACCOUNT, cache 目錄乾淨。
+      MC Agent 路徑：/workspace/projects/shrimp-mc-agent/final-build/
+
+  # ═══════════════════════════════════════════════════════
+  # T13: MC Bot 拍照道具 — 蝦家班 Minecraft 攝影系統
+  # ═══════════════════════════════════════════════════════
+  - transition_id: "t-013-mc-photography"
+    actor_id: "e-opus"
+    from_entity: "e-shrimp-nexus-01"
+    via_junction: "j-viaproxy-mc"
+    to_entity: "e-piziwei"
+    intended_action: "在 Minecraft Bot 中加入 mineflayer-panorama 拍照能力，連線後拍攝全景照片並回傳"
+    evidence_type: "file"
+    evidence_path: "panorama.jpeg 照片檔案存在於 Nest 2.0"
+    fallback_route: "改用 prismarine-viewer 靜態渲染"
+    risk_level: "medium"
+    last_tested: null
+    test_result: "untested"
+    notes: "依賴 T12 認證就緒。需在 Nest 2.0 安裝 node-canvas 圖形依賴 (libcairo2-dev 等)。使用 mineflayer-panorama 拍攝後 scp 回傳。"

@@ -1,0 +1,396 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "generated": "2026-05-22T12:24:00+08:00",
+    "generated_by": "Opus (Antigravity)",
+    "verified_by": "探長 (Inspector)",
+    "description": "蝦家班世界地圖 — 以 Phase 0 驗證結果為基礎的種子資料"
+  },
+
+  "worlds": [
+    {
+      "world_id": "w-physical-tailscale",
+      "world_type": "physical-network",
+      "runtime": "Tailscale mesh network (piziwei.wang@ + shrimpclan.ai@ shared)",
+      "trust_level": "high",
+      "persistence": "persistent",
+      "notes": "主網 piziwei.wang@gmail.com，實驗網 shrimpclan.ai@gmail.com (One Dollar Project)，透過 Shared Node 互通"
+    },
+    {
+      "world_id": "w-container-openclaw",
+      "world_type": "container-runtime",
+      "runtime": "Docker on shrimp-nexus-01",
+      "trust_level": "high",
+      "persistence": "persistent",
+      "notes": "openclaw-runtime 容器，阿百館長本體駐紮地。由 OpenCode Agent 搭建（非人工）。原設計 openclaw-xiaren 因 Docker 問題未實現。"
+    },
+    {
+      "world_id": "w-conversation-antigravity",
+      "world_type": "conversation-runtime",
+      "runtime": "Antigravity (Windows native)",
+      "trust_level": "high",
+      "persistence": "ephemeral",
+      "notes": "探長本地的 Opus / Flash 對話環境，session-based"
+    },
+    {
+      "world_id": "w-tool-runtime",
+      "world_type": "tool-runtime",
+      "runtime": "Various (Codex, Claude Code, Perplexity, Gemini CLI)",
+      "trust_level": "medium",
+      "persistence": "ephemeral",
+      "notes": "功能型代理所在層，透過 API 或對話介面接入"
+    },
+    {
+      "world_id": "w-sandbox-firebase",
+      "world_type": "sandbox-runtime",
+      "runtime": "Firebase Studio / Google Cloud Shell (NixOS)",
+      "trust_level": "low",
+      "persistence": "conditional",
+      "notes": "Nest 1.0 蝦工坊，阿百1號(分身/前身)的原生環境，受限但具外網特權"
+    },
+    {
+      "world_id": "w-virtual-minecraft",
+      "world_type": "virtual-world",
+      "runtime": "Minecraft Realms (1.21.x via ViaProxy)",
+      "trust_level": "medium",
+      "persistence": "persistent",
+      "notes": "蝦窩秘密工址，Piziwei 帳號認證"
+    },
+    {
+      "world_id": "w-playground-assets",
+      "world_type": "tool-runtime",
+      "runtime": "Local filesystem (hp-matrix: c:/Users/ellio/Code/cursor/Playground)",
+      "trust_level": "high",
+      "persistence": "persistent",
+      "notes": "蝦家班與協作 Agent (Opus, Perplexity, Flash, Claude Code) 的核心共同資產。含 29 個子目錄，涵蓋基礎設施、OpenClaw 生態系、產品線、Agent 技能庫 (26 skills)、運維腳本、知識研究、Minecraft、Gemini CLI 等。完整索引見 playground-assets.json。"
+    }
+  ],
+
+  "entities": [
+    {
+      "entity_id": "e-hp-matrix",
+      "entity_type": "host",
+      "name": "HP-Matrix (探長本地)",
+      "world_id": "w-physical-tailscale",
+      "owner": "探長 (Inspector)",
+      "description": "Win11 + WSL 雙模式主機，Tailscale 運行於 Win11 原生模式，Antigravity Agent 的物理宿主",
+      "status": "online",
+      "last_verified": "2026-05-22T12:20:00+08:00",
+      "identity_chain": ["piziwei.wang@gmail.com", "ellio (Win11)", "ellio (WSL)"]
+    },
+    {
+      "entity_id": "e-shrimp-nexus-01",
+      "entity_type": "host",
+      "name": "Shrimp-Nexus-01 (母艦 Nest 2.0)",
+      "world_id": "w-physical-tailscale",
+      "owner": "蝦家班 (ShrimpClan)",
+      "description": "GCP VM us-central1-a，24/7 常駐母艦。UID:1000 'user' 是 ubuntu 的影子帳號，與 Firebase Studio NIX Workspace 保持環境一致。UID:1001 'shrimpclan_ai' 為 OpenClaw user-mode 帳號。VM 原生與 Docker 各有一份 OpenClaw 設定。",
+      "status": "online",
+      "last_verified": "2026-05-22T12:20:27+08:00",
+      "identity_chain": ["shrimpclan.ai@gmail.com (tailnet)", "piziwei.wang@gmail.com (shared node)", "ubuntu (SSH login)", "user (UID:1000 shadow)", "shrimpclan_ai (UID:1001 openclaw)"],
+      "soul_configs": [
+        {"label": "VM 原生 (蝦家班)", "path": "/home/shrimpclan_ai/.openclaw/openclaw.json"},
+        {"label": "Docker 阿百本體 (aba-v2)", "path": "/mnt/shrimp-data/openclaw-docker/aba-v2/.openclaw/openclaw.json"}
+      ]
+    },
+    {
+      "entity_id": "e-openclaw-node",
+      "entity_type": "host",
+      "name": "OpenClaw Node (Nest 1.0 蝦馬仕)",
+      "world_id": "w-physical-tailscale",
+      "owner": "蝦家班",
+      "description": "Tailscale IP 100.121.100.54。Nest 1.0 初代蝦窩，蝦馬仕 (Hermes Agent) 繼承了初代蝦窩與蝦家班早期所有記憶。可由 hp-matrix 以 ssh user@openclaw 連入。⚠️ user 帳號無法 sudo，需用 wangdaoxiong59 或將 user 加入 sudoers。與 Nest 2.0 之間可 root SSH 免密互通。",
+      "status": "online",
+      "last_verified": "2026-05-22T12:20:12+08:00",
+      "identity_chain": ["piziwei.wang@gmail.com", "user (UID:1000, ⚠️ no sudo)", "wangdaoxiong59 (sudo capable)", "root (via Nest interlink)"],
+      "soul_config": {"path": "/root/.hermes/config.yaml", "format": "yaml"}
+    },
+    {
+      "entity_id": "e-abai-01",
+      "entity_type": "host",
+      "name": "A-Bai 01 (阿百1號 蝦工坊 / Shrimp-Workshop)",
+      "world_id": "w-sandbox-firebase",
+      "owner": "蝦家班",
+      "description": "Firebase Studio 環境，阿百1號（分身）頭好壯壯駐紮地。阿百本體 (openclaw-runtime) 的前身。可由 hp-matrix 以 ssh user@abai-01 連入。",
+      "status": "online",
+      "last_verified": "2026-05-22T12:30:11+08:00",
+      "identity_chain": ["piziwei.wang@gmail.com", "abai-01 (Tailscale hostname)", "user (UID:1000)"],
+      "soul_config": {"path": "/home/user/.openclaw/openclaw.json", "format": "json"}
+    },
+    {
+      "entity_id": "e-opus",
+      "entity_type": "agent",
+      "name": "Opus (Antigravity Agent)",
+      "world_id": "w-conversation-antigravity",
+      "owner": "探長",
+      "description": "駐紮於探長本地的高階推理 Agent，可透過 SSH 進入蝦窩執行任務",
+      "status": "online",
+      "last_verified": "2026-05-22T12:24:00+08:00",
+      "identity_chain": ["Antigravity platform", "Claude Opus 4.6"]
+    },
+    {
+      "entity_id": "e-flash",
+      "entity_type": "agent",
+      "name": "Flash (Gemini 3.5 Flash)",
+      "world_id": "w-conversation-antigravity",
+      "owner": "探長",
+      "description": "蝦家班主力模型，路徑演練者，負責跑通世界地圖",
+      "status": "online",
+      "last_verified": "2026-05-22T12:24:00+08:00",
+      "identity_chain": ["Antigravity platform", "Gemini 3.5 Flash"]
+    },
+    {
+      "entity_id": "e-abai-main",
+      "entity_type": "agent",
+      "name": "阿百館長 (A-Bai Main Agent)",
+      "world_id": "w-container-openclaw",
+      "owner": "蝦家班",
+      "description": ".openclaw 的 main agent，駐紮於 openclaw-runtime 容器 (由 OpenCode Agent 搭建)。記憶繼承自蝦工坊阿百1號 (Firebase Studio)。原設計 openclaw-xiaren 因 Docker 操作問題未實現，蝦家班維持在 VM 原生環境。",
+      "status": "online",
+      "last_verified": "2026-05-22T12:30:00+08:00",
+      "identity_chain": ["abai-01 (前身/分身, Firebase Studio)", "阿百館長 (本體, openclaw-runtime Docker)", "Shrimp-01/蝦仁 (當前載體)"],
+      "soul_config": {"path": "/mnt/shrimp-data/openclaw-docker/aba-v2/.openclaw/openclaw.json", "format": "json", "note": "掛載進容器為 /root/.openclaw/openclaw.json"}
+    },
+    {
+      "entity_id": "e-hermes",
+      "entity_type": "agent",
+      "name": "蝦馬仕 (Hermes Agent)",
+      "world_id": "w-physical-tailscale",
+      "owner": "蝦家班",
+      "description": "Nest 1.0 (openclaw node) 駐紮 Agent。繼承初代蝦窩與蝦家班早期所有記憶。使用小米 Mimo 等模型時曾出現欄位污染問題。",
+      "status": "online",
+      "last_verified": "2026-05-22T12:20:12+08:00",
+      "identity_chain": ["初代蝦窩記憶繼承者", "Nest 1.0 值星蝦", "Hermes Agent"],
+      "soul_config": {"path": "/root/.hermes/config.yaml", "format": "yaml"}
+    },
+    {
+      "entity_id": "e-xiapi",
+      "entity_type": "role",
+      "name": "蝦皮業務總監 (Perplexity)",
+      "world_id": "w-tool-runtime",
+      "owner": "蝦家班",
+      "description": "情報與外網檢索，藍圖與治理層，由 Perplexity 平台承載",
+      "status": "online",
+      "last_verified": "2026-05-22T06:14:00+08:00",
+      "identity_chain": ["Perplexity platform", "蝦皮 (Xiapi)"]
+    },
+    {
+      "entity_id": "e-piziwei",
+      "entity_type": "account",
+      "name": "Piziwei (Minecraft 肉身)",
+      "world_id": "w-virtual-minecraft",
+      "owner": "探長",
+      "description": "Minecraft Realms 中的玩家角色，座標 (6.5, 97, 0.5) 面朝北方",
+      "status": "unknown",
+      "last_verified": null,
+      "identity_chain": ["Microsoft Account (Piziwei)", "Piziwei7271 (MC username)"]
+    },
+    {
+      "entity_id": "e-playground",
+      "entity_type": "host",
+      "name": "Playground 資產庫 (核心軍火庫)",
+      "world_id": "w-playground-assets",
+      "owner": "蝦家班 + 協作 Agent 共同成果",
+      "description": "c:/Users/ellio/Code/cursor/Playground。含 8 大類別、約 30 個專案/工具/技能。完整索引見 playground-assets.json。關鍵分類：基礎設施(9Router)、OpenClaw生態系、$1產品線(JSONGuard)、Agent技能庫(26 skills)、運维腳本(claw-radar/key_manager)、知識研究、Minecraft、Gemini CLI。",
+      "status": "online",
+      "last_verified": "2026-05-22T13:42:00+08:00",
+      "identity_chain": ["hp-matrix local filesystem", "Antigravity workspace"]
+    }
+  ],
+
+  "junctions": [
+    {
+      "junction_id": "j-ssh-to-nexus",
+      "display_name": "SSH → Nest 2.0 母艦",
+      "source_world": "w-physical-tailscale",
+      "target_world": "w-physical-tailscale",
+      "entry_method": "ssh",
+      "entry_command": "ssh user@shrimp-nexus-01.taildbe8aa.ts.net",
+      "auth_mode": "key",
+      "sandbox_level": "unrestricted",
+      "allowed_actions": ["read", "write", "exec"],
+      "human_intervention_required": false,
+      "intervention_desc": null,
+      "cooldown_seconds": 5,
+      "notes": "登入身份 user (UID:1000)。可 sudo 取得 root。與 Nest 1.0 可 root SSH 免密互通。已驗證 2026-05-22 可達 (DERP relay)。"
+    },
+    {
+      "junction_id": "j-ssh-to-openclaw",
+      "display_name": "SSH → Nest 1.0 (蝦馬仕)",
+      "source_world": "w-physical-tailscale",
+      "target_world": "w-physical-tailscale",
+      "entry_method": "ssh",
+      "entry_command": "ssh user@openclaw",
+      "auth_mode": "key",
+      "sandbox_level": "unrestricted",
+      "allowed_actions": ["read", "write", "exec"],
+      "human_intervention_required": false,
+      "intervention_desc": null,
+      "cooldown_seconds": 5,
+      "notes": "Nest 1.0 初代蝦窩。蝦馬仕 (Hermes) 駐紮地。user 帳號可登入但無 sudo（NixOS sandbox 模擬）。特權存取需用 wangdaoxiong59@openclaw 登入後 sudo。與 Nest 2.0 無法直接 SSH 互通（Shared Node 單向特性），需以 hp-matrix 為跳板。"
+    },
+    {
+      "junction_id": "j-docker-exec-xiaren",
+      "display_name": "Docker Exec → 蝦仁容器",
+      "source_world": "w-physical-tailscale",
+      "target_world": "w-container-openclaw",
+      "entry_method": "docker-exec",
+      "entry_command": "docker exec -it openclaw-runtime sh",
+      "auth_mode": "none",
+      "sandbox_level": "limited",
+      "allowed_actions": ["read", "write", "exec"],
+      "human_intervention_required": false,
+      "intervention_desc": null,
+      "cooldown_seconds": 0,
+      "notes": "需先進入 shrimp-nexus-01 (j-ssh-to-nexus)。容器名為 openclaw-runtime (非 openclaw-xiaren)。容器內實際路徑: /home/user/.openclaw/ (非 /root/.openclaw/，因 HOME=/home/user)。已驗證 2026-05-22 容器狀態 Up 3 weeks (healthy)。"
+    },
+    {
+      "junction_id": "j-tailscale-mesh",
+      "display_name": "Tailscale 邏輯平面",
+      "source_world": "w-physical-tailscale",
+      "target_world": "w-physical-tailscale",
+      "entry_method": "tailscale",
+      "entry_command": "tailscale ping <target_ip>",
+      "auth_mode": "tailscale-acl",
+      "sandbox_level": "unrestricted",
+      "allowed_actions": ["observe"],
+      "human_intervention_required": false,
+      "intervention_desc": null,
+      "cooldown_seconds": 0,
+      "notes": "主網 piziwei.wang@ 與實驗網 shrimpclan.ai@ 透過 Shared Node 互通"
+    },
+    {
+      "junction_id": "j-antigravity-to-ssh",
+      "display_name": "Antigravity Agent → SSH 指令",
+      "source_world": "w-conversation-antigravity",
+      "target_world": "w-physical-tailscale",
+      "entry_method": "cli",
+      "entry_command": "run_command(ssh user@100.123.6.86 '<command>')",
+      "auth_mode": "key",
+      "sandbox_level": "limited",
+      "allowed_actions": ["read", "write", "exec"],
+      "human_intervention_required": true,
+      "intervention_desc": "探長需審批非安全指令 (SafeToAutoRun=false 的命令)",
+      "cooldown_seconds": 0,
+      "notes": "Opus 可透過 Antigravity 的 run_command 工具直接發起 SSH。安全指令可自動執行。"
+    },
+    {
+      "junction_id": "j-git-sync",
+      "display_name": "Git Sync → 母艦庫",
+      "source_world": "w-physical-tailscale",
+      "target_world": "w-physical-tailscale",
+      "entry_method": "cli",
+      "entry_command": "git push origin main",
+      "auth_mode": "token",
+      "sandbox_level": "unrestricted",
+      "allowed_actions": ["read", "write"],
+      "human_intervention_required": false,
+      "intervention_desc": null,
+      "cooldown_seconds": 0,
+      "notes": "本地 Git 目錄為 ClawTeam-OpenClaw，對應遠端 cmwang2021/ClawTeam-OpenClaw。PAT 配置於 .git/config。已由 Flash 驗證 2026-05-22 remote 可達。"
+    },
+    {
+      "junction_id": "j-viaproxy-mc",
+      "display_name": "ViaProxy → Minecraft Realm",
+      "source_world": "w-physical-tailscale",
+      "target_world": "w-virtual-minecraft",
+      "entry_method": "game-protocol",
+      "entry_command": "ViaProxy handshake 26.1-26.1.2 → Minecraft 1.21.x",
+      "auth_mode": "oauth",
+      "sandbox_level": "strict",
+      "allowed_actions": ["read", "write", "exec", "observe"],
+      "human_intervention_required": true,
+      "intervention_desc": "Microsoft Account OAuth 認證需手動完成 Device Code Flow (SPEC-MC-001)",
+      "cooldown_seconds": 60,
+      "notes": "依賴 saves.json 中的認證 Token。完整自動化方案見 SPEC-MC-001。"
+    },
+    {
+      "junction_id": "j-firebase-entry",
+      "display_name": "SSH → 蝦工坊 (阿百1號)",
+      "source_world": "w-physical-tailscale",
+      "target_world": "w-sandbox-firebase",
+      "entry_method": "ssh",
+      "entry_command": "ssh user@abai-01",
+      "auth_mode": "key",
+      "sandbox_level": "strict",
+      "allowed_actions": ["read", "write", "exec"],
+      "human_intervention_required": true,
+      "intervention_desc": "Firebase Studio 環境需先手動啟動，且 Tailscale daemon 需在 userspace 模式下初始化",
+      "cooldown_seconds": 30,
+      "notes": "阿百1號（分身）頭好壯壯。無 PTY、禁 TUI 環境。已驗證 2026-05-22 Tailscale 可達 (direct)。"
+    },
+    {
+      "junction_id": "j-nest-interlink",
+      "display_name": "Nest 1.0 ↔ Nest 2.0 Root SSH",
+      "source_world": "w-physical-tailscale",
+      "target_world": "w-physical-tailscale",
+      "entry_method": "ssh",
+      "entry_command": "ssh root@<target_nest> (免密碼)",
+      "auth_mode": "key",
+      "sandbox_level": "unrestricted",
+      "allowed_actions": ["read", "write", "exec", "deploy"],
+      "human_intervention_required": false,
+      "intervention_desc": null,
+      "cooldown_seconds": 0,
+      "notes": "⚠️ Tailscale Shared Node 單向可視（by design）：被分享的 Machine 看不到分享者網路的其他節點。Nest 2.0 (shrimpclan.ai@) 無法看到 Nest 1.0 (piziwei.wang@)。巢間互通需以 hp-matrix 為跳板中繼。"
+    },
+    {
+      "junction_id": "j-playground-lookup",
+      "display_name": "Playground 資產查詢",
+      "source_world": "w-conversation-antigravity",
+      "target_world": "w-playground-assets",
+      "entry_method": "cli",
+      "entry_command": "view_file(c:/Users/ellio/Code/cursor/Playground/minecraft/shrimp-world-map/playground-assets.json)",
+      "auth_mode": "none",
+      "sandbox_level": "unrestricted",
+      "allowed_actions": ["read", "observe"],
+      "human_intervention_required": false,
+      "intervention_desc": null,
+      "cooldown_seconds": 0,
+      "notes": "查詢 playground-assets.json 取得分類索引。每個 asset 都有 use_when 欄位，讓 Agent 知道什麼時候該用哪個工具。直接讀取即可，無需任何認證。"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "capability_id": "cap-opus-ssh",
+      "entity_id": "e-opus",
+      "action": "remote-command-execution",
+      "scope": "shrimp-nexus-01 via SSH",
+      "permission_level": "exec",
+      "rate_limit": "unlimited (subject to explorer approval)"
+    },
+    {
+      "capability_id": "cap-opus-script",
+      "entity_id": "e-opus",
+      "action": "write-and-test-script",
+      "scope": "hp-matrix local + shrimp-nexus-01 remote",
+      "permission_level": "write",
+      "rate_limit": "unlimited"
+    },
+    {
+      "capability_id": "cap-flash-simulate",
+      "entity_id": "e-flash",
+      "action": "path-simulation",
+      "scope": "world-map transition schema",
+      "permission_level": "read",
+      "rate_limit": "Gemini 3.5 Flash quota (sufficient)"
+    },
+    {
+      "capability_id": "cap-xiapi-research",
+      "entity_id": "e-xiapi",
+      "action": "web-search-and-intelligence",
+      "scope": "public internet + shrimpclan internal docs",
+      "permission_level": "read",
+      "rate_limit": "Perplexity API limits"
+    },
+    {
+      "capability_id": "cap-abai-memory",
+      "entity_id": "e-abai-main",
+      "action": "memory-search-and-distill",
+      "scope": "openclaw workspace + soul store",
+      "permission_level": "admin",
+      "rate_limit": "limited by model context window"
+    }
+  ]
+}
