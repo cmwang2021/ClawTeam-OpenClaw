@@ -182,16 +182,16 @@ transitions:
       Opus 先前 timeout 可能是 ConnectTimeout 設太短或 Tailscale 路由延遲。
 
   # ═══════════════════════════════════════════════════════
-  # T11: 巢間傳送 — Nest 2.0 root SSH → Nest 1.0
+  # T11: 巢間傳送 — Nest 2.0 ↔ Nest 1.0 (GCP Cloud Shell Bridge)
   # ═══════════════════════════════════════════════════════
   - transition_id: "t-011-nest-interlink-test"
     actor_id: "e-opus"
     from_entity: "e-shrimp-nexus-01"
     via_junction: "j-nest-interlink"
     to_entity: "e-openclaw-node"
-    intended_action: "從 Nest 2.0 以 root SSH 免密連入 Nest 1.0，驗證巢間傳送通道"
+    intended_action: "透過 GCP Cloud Shell 終端機作為跳板，同時 SSH 進入兩個 Nest，執行跨巢資料傳送"
     evidence_type: "stdout"
-    evidence_path: "Nest 1.0 hostname + whoami=root"
+    evidence_path: "Cloud Shell 中 ssh Nest1 + ssh Nest2 雙向可達 + scp 傳檔成功"
     fallback_route: "改由 hp-matrix 直接 SSH 到各 Nest"
     risk_level: "medium"
     last_tested: "2026-05-22T14:33:00+08:00"
@@ -202,9 +202,11 @@ transitions:
       - 被 tag 的 Machine 本身看不到分享者網路的其他節點。
       即：hp-matrix (piziwei.wang@) 能看到 shrimp-nexus-01 (shrimpclan.ai@ shared)，
       但 shrimp-nexus-01 無法反向看到 piziwei.wang@ 下的 openclaw 節點。
-      巢間互通方案：
-      1. 將 openclaw 也加入 shrimpclan.ai@ tailnet，或
-      2. 一律以 hp-matrix 作為跳板中繼（hp-matrix → Nest 1.0 / Nest 2.0 分別 SSH）。
+      ──────────────────────────────────────
+      探長指示之官方解法：以 GCP Cloud Shell 終端機（而非 hp-matrix）作為跳板中繼。
+      Cloud Shell 可同時存取兩個 GCP VM 的 SSH，執行跨巢 SCP/rsync 資料傳送。
+      待實測驗證後更新 test_result。
+
 
   # ═══════════════════════════════════════════════════════
   # T12: MC 認證管道前置 — ViaProxy 認證復位與驗證

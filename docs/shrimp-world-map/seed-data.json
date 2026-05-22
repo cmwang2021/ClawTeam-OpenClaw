@@ -321,18 +321,18 @@
     },
     {
       "junction_id": "j-nest-interlink",
-      "display_name": "Nest 1.0 ↔ Nest 2.0 Root SSH",
+      "display_name": "Nest 1.0 ↔ Nest 2.0 (GCP Cloud Shell Bridge)",
       "source_world": "w-physical-tailscale",
       "target_world": "w-physical-tailscale",
-      "entry_method": "ssh",
-      "entry_command": "ssh root@<target_nest> (免密碼)",
+      "entry_method": "ssh-via-bridge",
+      "entry_command": "gcloud cloud-shell ssh → ssh root@<target_nest>",
       "auth_mode": "key",
       "sandbox_level": "unrestricted",
       "allowed_actions": ["read", "write", "exec", "deploy"],
-      "human_intervention_required": false,
-      "intervention_desc": null,
-      "cooldown_seconds": 0,
-      "notes": "⚠️ Tailscale Shared Node 單向可視（by design）：被分享的 Machine 看不到分享者網路的其他節點。Nest 2.0 (shrimpclan.ai@) 無法看到 Nest 1.0 (piziwei.wang@)。巢間互通需以 hp-matrix 為跳板中繼。"
+      "human_intervention_required": true,
+      "intervention_desc": "需透過 GCP Cloud Shell 終端機作為跳板中繼執行巢間傳送指令",
+      "cooldown_seconds": 10,
+      "notes": "⚠️ Tailscale Shared Node 單向可視（by design）：Nest 2.0 (shrimpclan.ai@) 無法直連 Nest 1.0 (piziwei.wang@)。解法：以 GCP Cloud Shell 終端機（而非 hp-matrix）作為跳板，Cloud Shell 可同時 SSH 進入兩個 Nest，執行跨巢 SCP/rsync 資料傳送。"
     },
     {
       "junction_id": "j-playground-lookup",
