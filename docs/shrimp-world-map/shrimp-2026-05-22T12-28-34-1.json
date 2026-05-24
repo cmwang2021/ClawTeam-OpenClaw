@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-05-22T12:28:34.520Z",
+  "position": {
+    "x": "6.5",
+    "y": "106.0",
+    "z": "-3.7"
+  },
+  "yaw": "3.14",
+  "pitch": "0.00",
+  "health": 20,
+  "food": 19,
+  "time": 11779,
+  "weather": "clear",
+  "biome": 32,
+  "players_online": 1,
+  "players": [
+    "Piziwei"
+  ],
+  "nearby_entities": [],
+  "nearby_blocks": {
+    "stone": 12,
+    "gravel": 6,
+    "air": 42,
+    "dirt": 13,
+    "grass_block": 3,
+    "tall_grass": 1,
+    "coal_ore": 1,
+    "water": 3
+  }
+}
