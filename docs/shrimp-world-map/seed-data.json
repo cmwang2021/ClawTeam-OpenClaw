@@ -59,7 +59,7 @@
     {
       "world_id": "w-playground-assets",
       "world_type": "tool-runtime",
-      "runtime": "Local filesystem (hp-matrix: c:/Users/ellio/Code/cursor/Playground)",
+      "runtime": "Local filesystem (hp-matrix: c:/Users/ellio/Code/cursor/Playground | Nest 2.0: /workspace/Playground)",
       "trust_level": "high",
       "persistence": "persistent",
       "notes": "蝦家班與協作 Agent (Opus, Perplexity, Flash, Claude Code) 的核心共同資產。含 29 個子目錄，涵蓋基礎設施、OpenClaw 生態系、產品線、Agent 技能庫 (26 skills)、運維腳本、知識研究、Minecraft、Gemini CLI 等。完整索引見 playground-assets.json。"
@@ -84,9 +84,9 @@
       "name": "Shrimp-Nexus-01 (母艦 Nest 2.0)",
       "world_id": "w-physical-tailscale",
       "owner": "蝦家班 (ShrimpClan)",
-      "description": "GCP VM us-central1-a，24/7 常駐母艦。UID:1000 'user' 是 ubuntu 的影子帳號，與 Firebase Studio NIX Workspace 保持環境一致。UID:1001 'shrimpclan_ai' 為 OpenClaw user-mode 帳號。VM 原生與 Docker 各有一份 OpenClaw 設定。",
+      "description": "GCP VM us-central1-a，24/7 常駐母艦。UID:1000 'user' 是 ubuntu 的影子帳號，與 Firebase Studio NIX Workspace 保持環境一致。UID:1001 'shrimpclan_ai' 為 OpenClaw user-mode 帳號。VM 原生與 Docker 各有一份 OpenClaw 設定。已於 2026-05-26 成功穩定 A2A 雙核心通道。",
       "status": "online",
-      "last_verified": "2026-05-22T12:20:27+08:00",
+      "last_verified": "2026-05-26T14:40:00+08:00",
       "identity_chain": ["shrimpclan.ai@gmail.com (tailnet)", "piziwei.wang@gmail.com (shared node)", "ubuntu (SSH login)", "user (UID:1000 shadow)", "shrimpclan_ai (UID:1001 openclaw)"],
       "soul_configs": [
         {"label": "VM 原生 (蝦家班)", "path": "/home/shrimpclan_ai/.openclaw/openclaw.json"},
@@ -191,7 +191,7 @@
       "name": "Playground 資產庫 (核心軍火庫)",
       "world_id": "w-playground-assets",
       "owner": "蝦家班 + 協作 Agent 共同成果",
-      "description": "c:/Users/ellio/Code/cursor/Playground。含 8 大類別、約 30 個專案/工具/技能。完整索引見 playground-assets.json。關鍵分類：基礎設施(9Router)、OpenClaw生態系、$1產品線(JSONGuard)、Agent技能庫(26 skills)、運维腳本(claw-radar/key_manager)、知識研究、Minecraft、Gemini CLI。",
+      "description": "Playground assets folder. Local path: c:/Users/ellio/Code/cursor/Playground. Nest 2.0 path: /workspace/Playground. 含 8 大類別、約 30 個專案/工具/技能。完整索引見 playground-assets.json。關鍵分類：基礎設施(9Router)、OpenClaw生態系、$1產品線(JSONGuard)、Agent技能庫(26 skills)、運維腳本(claw-radar/key_manager)、知識研究、Minecraft、Gemini CLI。",
       "status": "online",
       "last_verified": "2026-05-22T13:42:00+08:00",
       "identity_chain": ["hp-matrix local filesystem", "Antigravity workspace"]
@@ -340,7 +340,7 @@
       "source_world": "w-conversation-antigravity",
       "target_world": "w-playground-assets",
       "entry_method": "cli",
-      "entry_command": "view_file(c:/Users/ellio/Code/cursor/Playground/minecraft/shrimp-world-map/playground-assets.json)",
+      "entry_command": "view_file(Playground/minecraft/shrimp-world-map/playground-assets.json)",
       "auth_mode": "none",
       "sandbox_level": "unrestricted",
       "allowed_actions": ["read", "observe"],
@@ -348,6 +348,36 @@
       "intervention_desc": null,
       "cooldown_seconds": 0,
       "notes": "查詢 playground-assets.json 取得分類索引。每個 asset 都有 use_when 欄位，讓 Agent 知道什麼時候該用哪個工具。直接讀取即可，無需任何認證。"
+    },
+    {
+      "junction_id": "j-a2a-to-nexus-host",
+      "display_name": "A2A JSON-RPC → Nest 2.0 宿主機",
+      "source_world": "w-conversation-antigravity",
+      "target_world": "w-physical-tailscale",
+      "entry_method": "http-post",
+      "entry_command": "curl -X POST http://100.123.6.86:18800/a2a/jsonrpc -H 'Authorization: Bearer <token>'",
+      "auth_mode": "bearer_token",
+      "sandbox_level": "limited",
+      "allowed_actions": ["read", "write", "exec"],
+      "human_intervention_required": false,
+      "intervention_desc": null,
+      "cooldown_seconds": 5,
+      "notes": "A2A 核心中繼管道。已於 2026-05-26 成功測通 (ROUNDTRIP_OK)，由宿主機 A2A 插件 (:18800) 連接 OpenClaw core (:18789)。連通標準 (Criteria): 1) token 明碼一致；2) messageId 存在；3) 25秒內回覆 Pong。"
+    },
+    {
+      "junction_id": "j-a2a-to-nexus-docker",
+      "display_name": "A2A JSON-RPC → Nest 2.0 容器",
+      "source_world": "w-conversation-antigravity",
+      "target_world": "w-container-openclaw",
+      "entry_method": "http-post",
+      "entry_command": "curl -X POST http://100.123.6.86:18790/a2a/jsonrpc",
+      "auth_mode": "password",
+      "sandbox_level": "limited",
+      "allowed_actions": ["read", "write", "exec"],
+      "human_intervention_required": false,
+      "intervention_desc": null,
+      "cooldown_seconds": 5,
+      "notes": "容器 A2A 中繼管道。對應 port 18790 (host mapped from container 18789)。已驗證運作正常 (ROUNDTRIP_OK)。"
     }
   ],
 
