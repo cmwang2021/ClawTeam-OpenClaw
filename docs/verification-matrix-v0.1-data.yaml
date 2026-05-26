@@ -1,8 +1,8 @@
-# shrimp-world-map 驗證矩陣 v0.3 — 即時驗證數據
-# 更新日期: 2026-05-26T14:40+08:00
+# shrimp-world-map 驗證矩陣 v0.4 — 即時驗證數據
+# 更新日期: 2026-05-26T16:00+08:00
 # Verifier: Antigravity Agent (Gemini 3.5 Flash / Claude 4.6)
 # Session: 6993292a-16c2-4582-823f-485affdfed14
-# 版本說明: v0.3 成功修復 A2A 通訊橋接，雙核心 round-trip 全線測通
+# 版本說明: v0.4 成功打通 Tailscale Shared Node，實現跨域 A2A 雙向 Pong 連動
 
 # ============================================================
 # 根因分析摘要: Nest 2.0 服務與通道問題
@@ -24,7 +24,7 @@ nodes:
     a2a_port: null
     auth_mode: local_shell
     result_status: ROUNDTRIP_OK
-    freshness_timestamp: "2026-05-26T13:25:00+08:00"
+    freshness_timestamp: "2026-05-26T16:00:00+08:00"
     owner: "探長 (Inspector)"
     inbound:
       - method: local_shell
@@ -38,7 +38,7 @@ nodes:
         status: ok
       - target: abai-workshop-01
         method: ssh_p2222
-        status: intermittent  # Firebase Studio idle timeout
+        status: ok
 
   - node_id: shrimp-01-host
     node_type: openclaw_agent
@@ -52,7 +52,7 @@ nodes:
     auth_mode: bearer_token
     auth_token_hash: "57cd604b...b6bdfa4"
     result_status: ROUNDTRIP_OK
-    freshness_timestamp: "2026-05-26T14:40:00+08:00"
+    freshness_timestamp: "2026-05-26T16:00:00+08:00"
     owner: ShrimpClan
     evidence_artifact:
       - "Pong response: 'Pong!' received in 25 seconds via A2A message/send RPC"
@@ -121,7 +121,7 @@ nodes:
     auth_mode: password
     auth_password: "ShrimpClan_2026_Secure!"
     result_status: ROUNDTRIP_OK
-    freshness_timestamp: "2026-05-26T12:21:00+08:00"
+    freshness_timestamp: "2026-05-26T16:00:00+08:00"
     owner: ShrimpClan
     evidence_artifact:
       - "Pong response: 阿百已就位，核心反應爐運作正常"
@@ -149,23 +149,30 @@ nodes:
     declared_identity: "阿百1號蝦工坊 (Firebase Studio)"
     control_plane: "Firebase Studio (Shrimp-Workshop)"
     entry_method: ssh_p2222
-    discovery_url: "http://100.83.105.23:18800 (僅 localhost 可用)"
-    tailscale_ip: "100.83.105.23"
-    a2a_port: 18800  # 僅 localhost
-    auth_mode: none
-    result_status: DISCOVERED
-    freshness_timestamp: "2026-05-26T10:25:00+08:00"
+    discovery_url: "https://abai-01.tail7752b1.ts.net/a2a/jsonrpc (透過 tailscale serve)"
+    tailscale_ip: "100.83.105.34"  # Nest 2.0 組織映射 IP
+    a2a_port: 18800  # 本地 18800 被 serve 映射至 443
+    auth_mode: bearer_token
+    auth_token_hash: "openclaw-rules"
+    result_status: ROUNDTRIP_OK
+    freshness_timestamp: "2026-05-26T16:00:00+08:00"
     owner: ShrimpClan
+    evidence_artifact:
+      - "A2A connection from Nest 2.0 to abai-01 via Tailscale Shared Node MagicDNS HTTPS succeeded."
+      - "Pong response received: '收到，班主！跨節點 A2A 握手成功。Pong！' in 15 seconds"
     inbound:
-      - method: ssh_p2222
-        via: "Tailscale DERP(hkg)"
-        status: intermittent  # idle timeout causes offline
-      - method: a2a_http_external
-        status: blocked  # NixOS 限制 inbound port
+      - method: ssh_tailscale
+        via: "Tailscale DERP / SSH"
+        status: ok
+      - method: a2a_http_shared_node
+        via: "Tailscale Shared Node HTTPS (port 443)"
+        status: ok
     outbound:
-      - status: unverified
-    blocker: "需 tailscale funnel 或 cloudflared tunnel 才能外部接入 A2A"
-    notes: "Firebase Studio 閒置後自動休眠, 需手動喚醒"
+      - target: shrimp-01-host
+        via: "SOCKS5 proxy at 127.0.0.1:1055"
+        status: ok
+    blocker: null
+    notes: "透過 tailscale serve --bg 18800 配合 SOCKS5 代理及 Node Sharing 徹底打通雙向"
 
   - node_id: shrimp-gemini-cli
     node_type: tool_agent
@@ -215,9 +222,9 @@ fixes:
     action: "刷新 9router-fork codex tokens 或停用"
     status: pending
   - id: F4
-    priority: P1
-    action: "啟用 abai-workshop-01 Tailscale Funnel"
-    status: pending
+    priority: P0
+    action: "建立 abai-workshop-01 Tailscale Shared Node 共享與 Serve HTTPS 對外暴露"
+    status: completed
   - id: F5
     priority: P1
     action: "驗證 shrimp-gemini-cli A2A 工具"
@@ -231,3 +238,4 @@ acceptance:
   human_gated_marked: true
   root_cause_identified: true  # v0.2 新增
   fix_plan_produced: true      # v0.2 新增
+
