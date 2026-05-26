@@ -1,0 +1,99 @@
+# shrimp-world-map 驗證矩陣 v0.1 — 即時驗證數據
+# 驗證日期: 2026-05-26T10:36+08:00
+# Verifier: hp-matrix-opus (Antigravity Agent, Claude Opus)
+# Session: 6993292a-16c2-4582-823f-485affdfed14
+
+nodes:
+  - node_id: hp-matrix-opus
+    node_type: verifier
+    declared_identity: "Antigravity Agent Opus"
+    control_plane: "hp-Matrix (Win11)"
+    entry_method: local_shell
+    discovery_url: null
+    reachability_probe: "N/A (self)"
+    auth_mode: local_shell
+    auth_roundtrip_probe: "session execution"
+    evidence_artifact:
+      - "session: 6993292a-16c2-4582-823f-485affdfed14"
+    freshness_timestamp: "2026-05-26T10:36:00+08:00"
+    result_status: ROUNDTRIP_OK
+    owner: "探長 (Inspector)"
+
+  - node_id: shrimp-01
+    node_type: openclaw_agent
+    declared_identity: "Nest2-蝦窩"
+    control_plane: "Nest 2.0 / Docker (openclaw-runtime)"
+    entry_method: a2a_http_jsonrpc
+    discovery_url: "http://100.123.6.86:18800/.well-known/agent-card.json"
+    reachability_probe: "curl Agent Card → HTTP 200"
+    auth_mode: bearer_token
+    auth_roundtrip_probe: "POST /a2a/jsonrpc (message/send with messageId)"
+    evidence_artifact:
+      - "agent_card: protocolVersion=0.3.0, securitySchemes=bearer"
+      - "audit: security rejected at 2026-05-26T02:35:29Z (unauth test)"
+      - "audit: task 935ca391 created at 2026-05-26T02:36:30Z (auth test)"
+      - "roundtrip: HTTP 200, taskId=935ca391-6fed-4a28-b313-b5362bdc0113"
+    freshness_timestamp: "2026-05-26T10:36:30+08:00"
+    result_status: AUTH_OK
+    owner: ShrimpClan
+    fallback_route: "SSH user@100.123.6.86 → docker exec openclaw-runtime"
+    notes: "A2A認證通過, agent dispatch需設定gateway.remote.password"
+
+  - node_id: abai-workshop-01
+    node_type: openclaw_agent
+    declared_identity: "OpenClaw A2A Gateway (阿百1號蝦工坊)"
+    control_plane: "Firebase Studio (Shrimp-Workshop)"
+    entry_method: a2a_http_jsonrpc
+    discovery_url: "http://100.83.105.23:18800/.well-known/agent-card.json"
+    reachability_probe: "tailscale ping → OK via DERP(hkg); port 18800 external → unreachable"
+    auth_mode: none
+    auth_roundtrip_probe: pending
+    evidence_artifact:
+      - "tailscale_ping: pong via DERP(hkg) 113ms"
+      - "ssh_probe: port 2222 connected, uptime 47min"
+      - "internal_agent_card: protocolVersion=0.3.0, localhost:18800"
+      - "external_probe: hp-matrix → timeout; nest2 → unreachable"
+    freshness_timestamp: "2026-05-26T10:25:00+08:00"
+    result_status: DISCOVERED
+    owner: ShrimpClan
+    fallback_route: "SSH user@100.83.105.23 -p 2222"
+    notes: "內部A2A正常, 外部不可達(Firebase Studio NixOS限制)"
+
+  - node_id: abai-docker
+    node_type: container_agent
+    declared_identity: "openclaw-runtime (阿百館長 Docker 本體)"
+    control_plane: "Nest 2.0 / Docker"
+    entry_method: docker_exec
+    discovery_url: "同 shrimp-01"
+    reachability_probe: "docker ps → Up, healthy"
+    auth_mode: docker_exec
+    auth_roundtrip_probe: "docker exec openclaw-runtime bash <script>"
+    evidence_artifact:
+      - "container: Up 2min (healthy), ports 18080/18789→18790"
+      - "docker_exec: verified via docker cp + docker exec"
+    freshness_timestamp: "2026-05-26T10:30:00+08:00"
+    result_status: REACHABLE
+    owner: ShrimpClan
+    notes: "與shrimp-01共用A2A Gateway"
+
+  - node_id: shrimp-gemini-cli
+    node_type: tool_agent
+    declared_identity: "屠龍寶刀 shrimp-gemini-cli"
+    control_plane: "hp-Matrix (Win11) / CLI Runtime"
+    entry_method: cli_invocation
+    discovery_url: null
+    reachability_probe: pending
+    auth_mode: cli_invocation
+    auth_roundtrip_probe: pending
+    evidence_artifact: []
+    freshness_timestamp: null
+    result_status: UNVERIFIED
+    owner: ShrimpClan
+    notes: "v0.2已整合A2A tools, 待驗證"
+
+# 驗收狀態
+acceptance:
+  opus_2_roundtrip_ok: false  # 需2個 ROUNDTRIP_OK, 目前1個 AUTH_OK
+  flash_shadow_verify: false  # 待後續 session
+  evidence_per_node: true
+  human_gated_marked: true
