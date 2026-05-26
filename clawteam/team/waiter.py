@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import signal
 import time
 from dataclasses import dataclass, field
 from typing import Callable
 
+from clawteam.platform_compat import install_signal_handlers, restore_signal_handlers
 from clawteam.team.mailbox import MailboxManager
 from clawteam.team.models import TaskItem, TaskStatus, TeamMessage
 from clawteam.team.tasks import TaskStore
@@ -69,14 +69,10 @@ class TaskWaiter:
         start = time.monotonic()
 
         # Save and install signal handlers
-        prev_sigint = signal.getsignal(signal.SIGINT)
-        prev_sigterm = signal.getsignal(signal.SIGTERM)
-
         def _handle_signal(signum, frame):
             self._running = False
 
-        signal.signal(signal.SIGINT, _handle_signal)
-        signal.signal(signal.SIGTERM, _handle_signal)
+        previous_handlers = install_signal_handlers(_handle_signal)
 
         last_summary = ""
         try:
@@ -107,7 +103,7 @@ class TaskWaiter:
                     last_summary = summary
 
                 # 4. All done?
-                if total > 0 and completed == total:
+                if completed == total:
                     # Final drain — catch messages that arrived after task completion
                     for msg in self.mailbox.receive(self.agent_name, limit=50):
                         self._messages_received += 1
@@ -160,10 +156,7 @@ class TaskWaiter:
                 task_details=[_task_summary(t) for t in tasks],
             )
         finally:
-            # Restore original signal handlers
-            signal.signal(signal.SIGINT, prev_sigint)
-            signal.signal(signal.SIGTERM, prev_sigterm)
-
+            restore_signal_handlers(previous_handlers)
 
     def _check_dead_agents(self) -> None:
         """Detect dead agents and mark their in_progress tasks as pending."""
@@ -189,6 +182,14 @@ class TaskWaiter:
 
             if abandoned and self.on_agent_dead:
                 self.on_agent_dead(agent_name, abandoned)
+
+            # Auto-respawn if there are pending tasks (fallback for when on-exit hook didn't fire)
+            if abandoned:
+                try:
+                    from clawteam.spawn.respawn import respawn_agent
+                    respawn_agent(self.team_name, agent_name)
+                except Exception:
+                    pass  # Best-effort; on-exit hook is the primary respawn path
 
 
 def _task_summary(task: TaskItem) -> dict:

@@ -83,9 +83,16 @@ ok "clawteam installed."
 info "Locating clawteam binary..."
 CLAWTEAM_BIN=""
 
-# Method 1: command -v
+# Guard: detect npm name-squatting package (a9logic/clawteam on npm)
 if command -v clawteam &>/dev/null; then
-    CLAWTEAM_BIN="$(command -v clawteam)"
+    _CANDIDATE="$(command -v clawteam)"
+    if head -1 "$_CANDIDATE" 2>/dev/null | grep -q node; then
+        warn "Found $_CANDIDATE but it is the npm name-squatting package (not the real ClawTeam)."
+        warn "Remove it with: npm uninstall -g clawteam"
+        # Don't use it — fall through to pip-based detection
+    else
+        CLAWTEAM_BIN="$_CANDIDATE"
+    fi
 fi
 
 # Method 2: pip show + Scripts/bin dir
@@ -190,7 +197,7 @@ with open('$APPROVALS_FILE', 'w') as f:
     fi
     # Add clawteam to the allowlist for all agents
     if command -v openclaw &>/dev/null; then
-        openclaw approvals allowlist add --agent "*" "*/clawteam" &>/dev/null 2>&1 && \
+        openclaw approvals allowlist add --agent "*" "$CLAWTEAM_BIN" &>/dev/null 2>&1 && \
             ok "Added clawteam to exec approvals allowlist" || \
             warn "Could not add clawteam to allowlist (gateway may not be running)"
     fi

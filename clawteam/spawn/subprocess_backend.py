@@ -3,12 +3,29 @@
 from __future__ import annotations
 
 import os
-import shlex
 import subprocess
+import sys
 
 from clawteam.spawn.base import SpawnBackend
-from clawteam.spawn.cli_env import build_spawn_path, resolve_clawteam_executable
-from clawteam.spawn.command_validation import normalize_spawn_command, validate_spawn_command
+from clawteam.spawn.cli_env import (
+    build_spawn_path,
+    propagate_openclaw_gateway_token,
+    resolve_clawteam_executable,
+)
+from clawteam.spawn.command_validation import (
+    command_has_workspace_arg,
+    is_claude_command,
+    is_codex_command,
+    is_gemini_command,
+    is_hermes_command,
+    is_kimi_command,
+    is_nanobot_command,
+    is_openclaw_command,
+    is_opencode_command,
+    is_qwen_command,
+    normalize_spawn_command,
+    validate_spawn_command,
+)
 
 
 class SubprocessBackend(SpawnBackend):
@@ -28,7 +45,15 @@ class SubprocessBackend(SpawnBackend):
         env: dict[str, str] | None = None,
         cwd: str | None = None,
         skip_permissions: bool = False,
+        openclaw_agent: str | None = None,
+        model: str | None = None,
     ) -> str:
+        if openclaw_agent:
+            raise NotImplementedError(
+                f"openclaw_agent is not supported with subprocess backend "
+                f"(got {openclaw_agent!r}); use tmux backend instead."
+            )
+
         spawn_env = os.environ.copy()
         clawteam_bin = resolve_clawteam_executable()
         spawn_env.update({
@@ -49,11 +74,15 @@ class SubprocessBackend(SpawnBackend):
             spawn_env["CLAWTEAM_TRANSPORT"] = transport
         if cwd:
             spawn_env["CLAWTEAM_WORKSPACE_DIR"] = cwd
+        if model:
+            spawn_env["CLAWTEAM_MODEL"] = model
         if env:
             spawn_env.update(env)
         spawn_env["PATH"] = build_spawn_path(spawn_env.get("PATH"))
         if os.path.isabs(clawteam_bin):
             spawn_env.setdefault("CLAWTEAM_BIN", clawteam_bin)
+        if is_openclaw_command(command):
+            propagate_openclaw_gateway_token(spawn_env)
 
         normalized_command = normalize_spawn_command(command)
 
@@ -63,20 +92,47 @@ class SubprocessBackend(SpawnBackend):
 
         final_command = list(normalized_command)
         if skip_permissions:
-            if _is_claude_command(normalized_command):
+            if is_claude_command(normalized_command) or is_qwen_command(normalized_command):
                 final_command.append("--dangerously-skip-permissions")
-            elif _is_codex_command(normalized_command):
+            elif is_codex_command(normalized_command):
                 final_command.append("--dangerously-bypass-approvals-and-sandbox")
-        if _is_nanobot_command(normalized_command):
-            if cwd and not _command_has_workspace_arg(normalized_command):
+            elif is_gemini_command(normalized_command) or is_kimi_command(normalized_command) or is_opencode_command(normalized_command) or is_hermes_command(normalized_command):
+                final_command.append("--yolo")
+        # Claude Code: pass --model if specified
+        # Pass --model if specified (claude, openclaw)
+        if model and is_claude_command(normalized_command):
+            final_command.extend(["--model", model])
+        if model and is_openclaw_command(normalized_command):
+            final_command.extend(["--model", model])
+        # Hermes Agent: insert 'chat' only when the user's original command is
+        # bare `hermes` (don't clobber user-supplied global options or subcommands).
+        # Check normalized_command, not final_command, since skip_permissions
+        # may have already appended --yolo.
+        # Tag with --source tool so clawteam spawns don't pollute user session list.
+        # Pass prompt via -q (Hermes -p is --profile, not prompt).
+        if is_hermes_command(normalized_command):
+            if len(normalized_command) == 1:
+                final_command.insert(1, "chat")
+            if "--source" not in final_command:
+                final_command.extend(["--source", "tool"])
+            if model:
+                final_command.extend(["-m", model])
+            if prompt:
+                final_command.extend(["-q", prompt])
+        elif is_kimi_command(normalized_command):
+            if cwd and not command_has_workspace_arg(normalized_command):
+                final_command.extend(["-w", cwd])
+            if prompt:
+                final_command.extend(["--print", "-p", prompt])
+        elif is_nanobot_command(normalized_command):
+            if cwd and not command_has_workspace_arg(normalized_command):
                 final_command.extend(["-w", cwd])
             if prompt:
                 final_command.extend(["-m", prompt])
         elif prompt:
-            if _is_codex_command(normalized_command):
-                # Codex accepts prompt as positional argument
+            if is_codex_command(normalized_command):
                 final_command.append(prompt)
-            elif _is_openclaw_command(normalized_command):
+            elif is_openclaw_command(normalized_command):
                 # OpenClaw agent mode: use --message for the prompt
                 if "agent" not in final_command and "tui" not in final_command:
                     final_command.insert(1, "agent")
@@ -86,21 +142,24 @@ class SubprocessBackend(SpawnBackend):
             else:
                 final_command.extend(["-p", prompt])
 
-        # Wrap with on-exit hook so task status updates immediately on exit
-        cmd_str = " ".join(shlex.quote(c) for c in final_command)
-        exit_cmd = shlex.quote(clawteam_bin) if os.path.isabs(clawteam_bin) else "clawteam"
-        exit_hook = (
-            f"{exit_cmd} lifecycle on-exit --team {shlex.quote(team_name)} "
-            f"--agent {shlex.quote(agent_name)}"
-        )
-        shell_cmd = f"{cmd_str}; {exit_hook}"
+        wrapper_command = [
+            sys.executable,
+            "-m",
+            "clawteam.spawn.subprocess_wrapper",
+            "--team",
+            team_name,
+            "--agent",
+            agent_name,
+            "--",
+            *final_command,
+        ]
 
         process = subprocess.Popen(
-            shell_cmd,
-            shell=True,
+            wrapper_command,
             env=spawn_env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            # Subprocess agents are fire-and-forget; unread pipes can block long-lived runs.
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             cwd=cwd,
         )
         self._processes[agent_name] = process
@@ -112,7 +171,7 @@ class SubprocessBackend(SpawnBackend):
             agent_name=agent_name,
             backend="subprocess",
             pid=process.pid,
-            command=list(normalized_command),
+            command=list(final_command),
         )
 
         return f"Agent '{agent_name}' spawned as subprocess (pid={process.pid})"
@@ -125,40 +184,3 @@ class SubprocessBackend(SpawnBackend):
             else:
                 self._processes.pop(name, None)
         return result
-
-
-def _is_claude_command(command: list[str]) -> bool:
-    """Check if the command is a claude CLI invocation."""
-    if not command:
-        return False
-    cmd = command[0].rsplit("/", 1)[-1]
-    return cmd in ("claude", "claude-code")
-
-
-def _is_codex_command(command: list[str]) -> bool:
-    """Check if the command is a codex CLI invocation."""
-    if not command:
-        return False
-    cmd = command[0].rsplit("/", 1)[-1]
-    return cmd in ("codex", "codex-cli")
-
-
-def _is_openclaw_command(command: list[str]) -> bool:
-    """Check if the command is an OpenClaw CLI invocation."""
-    if not command:
-        return False
-    cmd = command[0].rsplit("/", 1)[-1]
-    return cmd in ("openclaw",)
-
-
-def _is_nanobot_command(command: list[str]) -> bool:
-    """Check if the command is a nanobot CLI invocation."""
-    if not command:
-        return False
-    cmd = command[0].rsplit("/", 1)[-1]
-    return cmd == "nanobot"
-
-
-def _command_has_workspace_arg(command: list[str]) -> bool:
-    """Return True when a command already specifies a nanobot workspace."""
-    return "-w" in command or "--workspace" in command

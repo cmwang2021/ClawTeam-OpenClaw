@@ -4,13 +4,44 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
+from clawteam.paths import ensure_within_root, validate_identifier
 from clawteam.workspace import git
 from clawteam.workspace.models import WorkspaceInfo, WorkspaceRegistry
 
 logger = logging.getLogger(__name__)
+
+_IGNORED_DIR_NAMES = {
+    ".git",
+    "node_modules",
+    "dist",
+    "build",
+    ".next",
+    ".nuxt",
+    ".turbo",
+    ".cache",
+    "coverage",
+    "tmp",
+    "vendor",
+}
+
+_SENSITIVE_FILE_NAMES = {
+    ".env",
+    ".env.local",
+    ".npmrc",
+    "credentials.json",
+}
+
+_SENSITIVE_FILE_SUFFIXES = (
+    ".pem",
+    ".key",
+    ".p12",
+    ".pfx",
+)
 
 
 def _workspaces_root() -> Path:
@@ -21,7 +52,11 @@ def _workspaces_root() -> Path:
 
 
 def _registry_path(team_name: str) -> Path:
-    return _workspaces_root() / team_name / "workspace-registry.json"
+    return ensure_within_root(
+        _workspaces_root(),
+        validate_identifier(team_name, "team name"),
+        "workspace-registry.json",
+    )
 
 
 def _load_registry(team_name: str, repo_root: str) -> WorkspaceRegistry:
@@ -40,15 +75,23 @@ def _save_registry(registry: WorkspaceRegistry) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(registry.model_dump_json(indent=2), encoding="utf-8")
-    tmp.rename(path)
+    os.replace(str(tmp), str(path))
 
 
 class WorkspaceManager:
     """Manages git worktree-based isolated workspaces for agents."""
 
     def __init__(self, repo_path: Path | None = None):
-        cwd = repo_path or Path.cwd()
+        cwd = (repo_path or Path.cwd()).resolve()
+        self.requested_path = cwd
         self.repo_root = git.repo_root(cwd)
+        self.repo_subpath = ""
+        try:
+            relative = cwd.relative_to(self.repo_root)
+            if str(relative) != ".":
+                self.repo_subpath = relative.as_posix()
+        except ValueError:
+            self.repo_subpath = ""
         self.base_branch = git.current_branch(self.repo_root)
 
     # ------------------------------------------------------------------
@@ -61,8 +104,10 @@ class WorkspaceManager:
         agent_name: str,
         agent_id: str,
     ) -> WorkspaceInfo:
+        validate_identifier(team_name, "team name")
+        validate_identifier(agent_name, "agent name")
         branch = f"clawteam/{team_name}/{agent_name}"
-        wt_path = _workspaces_root() / team_name / agent_name
+        wt_path = ensure_within_root(_workspaces_root(), team_name, agent_name)
 
         # Crash recovery: if worktree already exists, clean it up first
         if wt_path.exists():
@@ -79,6 +124,9 @@ class WorkspaceManager:
             self.repo_root, wt_path, branch, base_ref=self.base_branch,
         )
 
+        if self.repo_subpath:
+            self._overlay_untracked_subpath_files(wt_path)
+
         info = WorkspaceInfo(
             agent_name=agent_name,
             agent_id=agent_id,
@@ -86,6 +134,7 @@ class WorkspaceManager:
             branch_name=branch,
             worktree_path=str(wt_path),
             repo_root=str(self.repo_root),
+            repo_subpath=self.repo_subpath,
             base_branch=self.base_branch,
             created_at=datetime.now(timezone.utc).isoformat(),
         )
@@ -223,3 +272,36 @@ class WorkspaceManager:
             if ws.agent_name == agent_name:
                 return ws
         return None
+
+    def _overlay_untracked_subpath_files(self, worktree_root: Path) -> None:
+        source_root = self.repo_root / self.repo_subpath
+        target_root = worktree_root / self.repo_subpath
+        if not source_root.exists() or not source_root.is_dir():
+            return
+
+        for dirpath, dirnames, filenames in os.walk(source_root):
+            dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIR_NAMES]
+            current_dir = Path(dirpath)
+            relative_dir = current_dir.relative_to(source_root)
+            target_dir = target_root / relative_dir
+            target_dir.mkdir(parents=True, exist_ok=True)
+
+            for filename in filenames:
+                if filename in _SENSITIVE_FILE_NAMES or filename.endswith(_SENSITIVE_FILE_SUFFIXES):
+                    continue
+                if filename.endswith((".pyc", ".pyo", ".so", ".o")):
+                    continue
+
+                source_path = current_dir / filename
+                if source_path.is_symlink():
+                    logger.debug("workspace overlay skipped symlink %s", source_path)
+                    continue
+                relative = source_path.relative_to(source_root)
+                target_path = target_root / relative
+                if target_path.exists():
+                    continue
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    shutil.copy2(source_path, target_path)
+                except (OSError, PermissionError) as exc:
+                    logger.warning("workspace overlay skipped %s: %s", source_path, exc)

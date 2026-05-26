@@ -1,3 +1,17 @@
+<p align="center">
+  <a href="README.md">English</a> |
+  <a href="README_CN.md">简体中文</a> |
+  <a href="README_TW.md">繁體中文</a> |
+  <a href="README_JA.md">日本語</a> |
+  <a href="README_KO.md">한국어</a> |
+  <a href="README_FR.md">Français</a> |
+  <a href="README_ES.md">Español</a> |
+  <a href="README_DE.md">Deutsch</a> |
+  <a href="README_IT.md">Italiano</a> |
+  <a href="README_RU.md">Русский</a> |
+  <a href="README_PT-BR.md">Português (Brasil)</a>
+</p>
+
 <h1 align="center">🦞ClawTeam-OpenClaw</h1>
 
 <p align="center">
@@ -12,7 +26,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-≥3.10-blue?logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/agents-OpenClaw_%7C_Claude_Code_%7C_Codex_%7C_nanobot-blueviolet" alt="Agents">
+  <img src="https://img.shields.io/badge/agents-OpenClaw_%7C_Claude_Code_%7C_Codex_%7C_Hermes_%7C_nanobot-blueviolet" alt="Agents">
   <img src="https://img.shields.io/badge/transport-File_%7C_ZeroMQ_P2P-orange" alt="Transport">
   <img src="https://img.shields.io/badge/version-0.3.0-teal" alt="Version">
 </p>
@@ -21,7 +35,15 @@
 
 You set the goal. The agent swarm handles the rest — spawning workers, splitting tasks, coordinating, and merging results.
 
-Works with [OpenClaw](https://openclaw.ai) (default), [Claude Code](https://claude.ai/claude-code), [Codex](https://openai.com/codex), [nanobot](https://github.com/HKUDS/nanobot), [Cursor](https://cursor.com), and any CLI agent.
+Works with [OpenClaw](https://openclaw.ai) (default), [Claude Code](https://claude.ai/claude-code), [Codex](https://openai.com/codex), [Hermes Agent](https://github.com/NousResearch/hermes-agent), [nanobot](https://github.com/HKUDS/nanobot), [Cursor](https://cursor.com), and any CLI agent.
+
+## Platform Support
+
+- Linux and macOS keep the original `tmux`-first workflow.
+- Windows 10/11 is supported with an automatic fallback to the `subprocess` backend.
+- Task locking, process liveness checks, and signal registration are routed through a shared compatibility layer so unsupported Unix-only behavior degrades safely on Windows.
+- `board attach` still requires `tmux`, so on Windows prefer `clawteam board serve` for live monitoring.
+- If you want the original tmux workflow on Windows, run ClawTeam inside WSL.
 
 ---
 
@@ -46,7 +68,7 @@ Current AI agents are powerful but work in **isolation**. ClawTeam lets agents s
 <td width="33%">
 
 ### Agents Spawn Agents
-The leader calls `clawteam spawn` to create workers. Each gets its own **git worktree**, **tmux window**, and **identity**.
+The leader calls `clawteam spawn` to create workers. Each gets its own **git worktree**, **spawn backend session**, and **identity**.
 
 ```bash
 clawteam spawn --team my-team \
@@ -73,9 +95,9 @@ clawteam inbox send my-team leader \
 Monitor the swarm from a tiled tmux view or Web UI. The leader handles coordination.
 
 ```bash
-clawteam board attach my-team
-# Or web dashboard
 clawteam board serve --port 8080
+# Or, on Linux/macOS/WSL with tmux:
+clawteam board attach my-team
 ```
 
 </td>
@@ -102,22 +124,24 @@ The agent auto-creates a team, spawns workers, assigns tasks, and coordinates �
 # Create a team
 clawteam team spawn-team my-team -d "Build the auth module" -n leader
 
-# Spawn workers — each gets a git worktree + tmux window
+# Spawn workers — each gets a git worktree plus its own backend session
 clawteam spawn --team my-team --agent-name alice --task "Implement OAuth2 flow"
 clawteam spawn --team my-team --agent-name bob   --task "Write unit tests for auth"
 
 # Watch them work
-clawteam board attach my-team
+clawteam board serve --port 8080
+clawteam board attach my-team   # Linux/macOS/WSL with tmux
 ```
 
 ### Supported Agents
 
 | Agent | Spawn Command | Status |
 |-------|--------------|--------|
-| [OpenClaw](https://openclaw.ai) | `clawteam spawn tmux openclaw --team ...` | **Default** |
-| [Claude Code](https://claude.ai/claude-code) | `clawteam spawn tmux claude --team ...` | Full support |
-| [Codex](https://openai.com/codex) | `clawteam spawn tmux codex --team ...` | Full support |
-| [nanobot](https://github.com/HKUDS/nanobot) | `clawteam spawn tmux nanobot --team ...` | Full support |
+| [OpenClaw](https://openclaw.ai) | `clawteam spawn --team ...` | **Default** |
+| [Claude Code](https://claude.ai/claude-code) | `clawteam spawn claude --team ...` | Full support |
+| [Codex](https://openai.com/codex) | `clawteam spawn codex --team ...` | Full support |
+| [nanobot](https://github.com/HKUDS/nanobot) | `clawteam spawn nanobot --team ...` | Full support |
+| [Hermes Agent](https://github.com/NousResearch/hermes-agent) | `clawteam spawn hermes --team ...` | Full support (tmux + subprocess) |
 | [Cursor](https://cursor.com) | `clawteam spawn subprocess cursor --team ...` | Experimental |
 | Custom scripts | `clawteam spawn subprocess python --team ...` | Full support |
 
@@ -127,43 +151,66 @@ clawteam board attach my-team
 
 ### Step 1: Prerequisites
 
-ClawTeam requires **Python 3.10+**, **tmux**, and at least one CLI coding agent (OpenClaw, Claude Code, Codex, etc.).
+ClawTeam requires **Python 3.10+** and at least one CLI coding agent (OpenClaw, Claude Code, Codex, etc.). On Linux/macOS, the full visual workflow also requires **tmux**. On Windows, `tmux` is optional because ClawTeam defaults to the `subprocess` backend.
 
 **Check what you already have:**
 
 ```bash
-python3 --version   # Need 3.10+
-tmux -V             # Need any version
+python --version    # Need 3.10+
+tmux -V             # Linux/macOS/WSL only
 openclaw --version  # Or: claude --version / codex --version
 ```
 
 **Install missing prerequisites:**
 
-| Tool | macOS | Ubuntu/Debian |
-|------|-------|---------------|
-| Python 3.10+ | `brew install python@3.12` | `sudo apt update && sudo apt install python3 python3-pip` |
-| tmux | `brew install tmux` | `sudo apt install tmux` |
-| OpenClaw | `pip install openclaw` | `pip install openclaw` |
+| Tool | Windows | macOS | Ubuntu/Debian |
+|------|---------|-------|---------------|
+| Python 3.10+ | Install from [python.org](https://www.python.org/downloads/windows/) | `brew install python@3.12` | `sudo apt update && sudo apt install python3 python3-pip` |
+| tmux | Optional | `brew install tmux` | `sudo apt install tmux` |
+| OpenClaw | `pip install openclaw` | `pip install openclaw` | `pip install openclaw` |
 
 > If using Claude Code or Codex instead of OpenClaw, install those per their own docs. OpenClaw is the default but not strictly required.
 
+On Windows, after installation you can verify the backend choice with:
+
+```powershell
+clawteam config get default_backend
+```
+
+### Windows Native Setup
+
+Use this path for PowerShell or Windows Terminal:
+
+```powershell
+py -3 -m pip install -e .
+clawteam config get default_backend   # should print subprocess
+clawteam spawn --team demo --agent-name worker1 --task "Do work"
+clawteam board serve --port 8080
+```
+
+If you want the full tmux experience, install and run ClawTeam inside WSL instead.
+
 ### Step 2: Install ClawTeam
 
-> **Important:** Do not use `pip install clawteam` — that installs the upstream version from PyPI, which defaults to `claude` and lacks the OpenClaw adaptations. Always install from this repo.
+> **⚠️ Do NOT run `pip install clawteam` or `npm install -g clawteam` directly:**
+> - `pip install clawteam` installs the upstream PyPI version, which defaults to `claude` and lacks OpenClaw adaptations.
+> - `npm install -g clawteam` installs an unrelated name-squatting package (by `a9logic`). If `clawteam --version` shows "Coming Soon", you have the wrong one — run `npm uninstall -g clawteam`.
+>
+> **Use the three commands below — the `pip install -e .` step is required. It installs from the local repo, not from PyPI.**
 
 ```bash
 git clone https://github.com/win4r/ClawTeam-OpenClaw.git
 cd ClawTeam-OpenClaw
-pip install -e .
+pip install -e .    # ← Required! Installs from local repo, NOT the same as pip install clawteam
 ```
 
 Optional — P2P transport (ZeroMQ):
 
 ```bash
-pip install -e ".[p2p]"
+python -m pip install -e ".[p2p]"
 ```
 
-### Step 3: Create the `~/bin/clawteam` symlink
+### Step 3: Ensure `clawteam` is on PATH
 
 Spawned agents run in fresh shells that may not have pip's bin directory in PATH. A symlink in `~/bin` ensures `clawteam` is always reachable:
 
@@ -188,6 +235,8 @@ Then ensure `~/bin` is in your PATH — add this to `~/.zshrc` or `~/.bashrc` if
 ```bash
 export PATH="$HOME/bin:$PATH"
 ```
+
+On native Windows, you usually do not need the `~/bin` symlink step. Instead, make sure the Python `Scripts` directory containing `clawteam.exe` is on `PATH`, or activate the virtual environment where you installed ClawTeam before spawning agents.
 
 ### Step 4: Install the OpenClaw skill (OpenClaw users only)
 
@@ -216,11 +265,34 @@ else:
     print('exec-approvals.json not found — run openclaw once first, then re-run this step')
 "
 
-# Add clawteam to the allowlist
-openclaw approvals allowlist add --agent "*" "*/clawteam"
+# Add clawteam to the allowlist (use the absolute path — OpenClaw 4.2+ requires it)
+openclaw approvals allowlist add --agent "*" "$(which clawteam)"
 ```
 
 > If `openclaw approvals` fails, the OpenClaw gateway may not be running. Start it first, then retry.
+
+### Step 5b: Install the Hermes skill (Hermes Agent users only)
+
+The skill file teaches Hermes Agent how to use ClawTeam through natural language -- including when to route to clawteam (vs `delegate_task`), correct spawn flags, and timing expectations. Skip this step if you're not using Hermes.
+
+```bash
+mkdir -p ~/.hermes/skills/openclaw-imports/clawteam
+cp skills/hermes/SKILL.md ~/.hermes/skills/openclaw-imports/clawteam/SKILL.md
+```
+
+> Verify with `hermes skills list | grep clawteam`. The skill should show up under `openclaw-imports` (Hermes auto-routes skills from that directory).
+
+**Key things the skill teaches Hermes:**
+
+- Route multi-agent/swarm/team queries to clawteam (not `delegate_task`)
+- Use `--team-name` (not `--team`), `-g`/`--goal`, `--force` on `launch`
+- Always pass `--command hermes` on `launch` -- templates default to `openclaw`
+- On `spawn`, pass `hermes` as a trailing positional arg (not `--command hermes`)
+- Wait `sleep 60` after launch for worker boot, then poll the board every 30s
+- Never peek inboxes within the first 60s (they'll be empty)
+- Read inboxes and produce a consolidated report before `clawteam team cleanup`
+
+Spawned Hermes workers automatically inherit MCP servers configured in `~/.hermes/config.yaml`, so any knowledge brain or tool setup is available to every worker.
 
 ### Step 6: Verify
 
@@ -245,16 +317,19 @@ cd ClawTeam-OpenClaw
 bash scripts/install-openclaw.sh
 ```
 
+This script is intended for Linux, macOS, and WSL shells, not native PowerShell.
+
 ### Troubleshooting
 
 | Problem | Cause | Fix |
 |---------|-------|-----|
-| `clawteam: command not found` | pip bin dir not in PATH | Run Step 3 (symlink + PATH) |
-| Spawned agents can't find `clawteam` | Agents run in fresh shells without pip PATH | Verify `~/bin/clawteam` symlink exists and `~/bin` is in PATH |
+| `clawteam: command not found` | pip bin dir not in PATH | Run Step 3 and ensure either `~/bin` or your Python `Scripts` directory is on PATH |
+| Spawned agents can't find `clawteam` | Agents run in fresh shells without pip PATH | Verify `clawteam` is on PATH in new shells; on Windows check the Python `Scripts` directory or active virtualenv |
 | `openclaw approvals` fails | Gateway not running | Start `openclaw gateway` first, then retry Step 5 |
 | `exec-approvals.json not found` | OpenClaw never ran | Run `openclaw` once to generate config, then retry Step 5 |
 | Agents block on permission prompts | Exec approvals security is "full" | Run Step 5 to switch to "allowlist" |
 | `pip install -e .` fails | Missing build deps | Run `pip install hatchling` first |
+| `clawteam --version` shows "Coming Soon" | Installed the npm name-squatting package (`a9logic`, unrelated to this project) | `npm uninstall -g clawteam`, then reinstall per Step 2 |
 
 ---
 
@@ -298,7 +373,7 @@ A TOML template spawns a complete 7-agent investment team with one command:
 clawteam launch hedge-fund --team fund1 --goal "Analyze AAPL, MSFT, NVDA for Q2 2026"
 ```
 
-5 analyst agents (value, growth, technical, fundamentals, sentiment) work in parallel. Risk manager synthesizes all signals. Portfolio manager makes final decisions.
+Seven agents total: 5 analysts (value, growth, technical, fundamentals, sentiment) work in parallel, a risk manager synthesizes all signals, and a portfolio manager makes the final decision.
 
 Templates are TOML files — **create your own** for any domain.
 
@@ -338,18 +413,29 @@ Templates are TOML files — **create your own** for any domain.
 ### Monitoring & Dashboards
 - `board show` — terminal kanban
 - `board live` — auto-refreshing dashboard
-- `board attach` — tiled tmux view of all agents
+- `board attach` — tiled tmux view of all agents (Linux/macOS/WSL)
 - `board serve` — Web UI with real-time updates
 
 ### Team Templates
 - TOML files define team archetypes (roles, tasks, prompts)
 - One command: `clawteam launch <template>`
 - Variable substitution: `{goal}`, `{team_name}`, `{agent_name}`
-- **Per-agent model assignment** (preview): assign different models to different roles — see [below](#per-agent-model-assignment-preview)
 
 </td>
 </tr>
 </table>
+
+### v0.3.0 — Production Intelligence *(New)*
+- **Hermes Agent Support** — native spawn target across NativeCliAdapter, tmux, and subprocess backends. Auto-inserts `chat` subcommand and passes `--source tool` (session hygiene requires the upstream Hermes patch described in `skills/hermes/SKILL.md` — ClawTeam passes the flag correctly; Hermes ≤ 0.8.0 ignores it).
+- **Cost Dashboard** — real-time token/cost by agent, model, and task (`clawteam board cost`). No competitor has this.
+- **Circuit Breaker** — healthy → degraded → open tri-state with half-open probing
+- **Retry with Backoff** — `spawn_with_retry()` for resilient agent spawning
+- **Idempotency Keys** — deduplication for `create()` and `send()`
+- **Intent-Based Prompts** — military C2 Auftragstaktik: agents get `intent` + `end_state` + `constraints`
+- **Boids Emergence Rules** — Reynolds 1986 flocking rules adapted for LLM agents
+- **Metacognitive Self-Assessment** — agents tag their own confidence levels
+- **Per-Agent Model Resolution** — 7-level priority chain, mix Claude/GPT/Qwen in one team
+- **Runtime Live Injection** — `runtime inject/state/watch` for messaging running agents
 
 **Also:** plan approval workflows, graceful lifecycle management, `--json` output on all commands, cross-machine support (NFS/SSHFS or P2P), multi-user namespacing, spawn validation with auto-rollback, `fcntl` file locking for concurrent safety.
 
@@ -371,7 +457,7 @@ Once the skill is installed, talk to your OpenClaw bot in any channel:
 
 | What you say | What happens |
 |-------------|-------------|
-| "Create a 5-agent team to build a web app" | Creates team, tasks, spawns 5 agents in tmux |
+| "Create a 5-agent team to build a web app" | Creates team, tasks, and spawns 5 agents with the configured backend |
 | "Launch a hedge-fund analysis team" | `clawteam launch hedge-fund` with 7 agents |
 | "Check the status of my agent team" | `clawteam board show` with kanban output |
 
@@ -396,6 +482,43 @@ Once the skill is installed, talk to your OpenClaw bot in any channel:
                                                All coordinate via
                                                ~/.clawteam/ (tasks, inboxes)
 ```
+
+---
+
+## Hermes Agent Integration
+
+ClawTeam ships first-class support for [Hermes Agent](https://github.com/NousResearch/hermes-agent) — Nous Research's self-improving CLI agent. Hermes workers spawn via the same adapter path as OpenClaw (tmux or subprocess), but use Hermes-native command flags (`hermes chat --yolo --source tool -q "<task>"`).
+
+Hermes workers automatically inherit any MCP servers configured in `~/.hermes/config.yaml`, so whatever tools you've wired into Hermes are available to every spawned worker.
+
+| Capability | Hermes Alone | Hermes + ClawTeam |
+|-----------|--------------|-------------------|
+| **Parallelism** | Single session | Spawn N workers in tmux windows |
+| **Coordination** | Manual | Kanban + inboxes + task dependencies |
+| **Isolation** | Shared working dir | Git worktrees per agent |
+| **Session hygiene** | Mixes with user sessions | `--source tool` tag passed to Hermes (requires upstream fix — see SKILL.md `Known upstream issues`) |
+
+**Using Hermes with ClawTeam:**
+
+All built-in templates (`hedge-fund`, `research-paper`, `code-review`, `strategy-room`) default to spawning OpenClaw workers. Hermes users pass `--command hermes` to override:
+
+```bash
+clawteam launch hedge-fund --team-name <name> --goal "..." --command hermes --force
+```
+
+Or spawn manually, passing `hermes` as the trailing positional argument:
+
+```bash
+clawteam spawn --team <team> --agent-name <name> --task "..." --no-workspace hermes
+```
+
+Note: the built-in templates were designed around OpenClaw's `clawteam inbox send` coordination pattern. Hermes workers sometimes complete their analysis without executing the inbox-send command. If `clawteam inbox peek` returns empty while the kanban shows `COMPLETED`, capture tmux scrollback directly:
+
+```bash
+tmux capture-pane -t clawteam-<team>:<window-index> -p -S -500
+```
+
+**Installation:** see Step 5b in the Install section.
 
 ---
 
@@ -425,14 +548,14 @@ Once the skill is installed, talk to your OpenClaw bot in any channel:
                                       └─────────────────────┘
 ```
 
-All state lives in `~/.clawteam/` as JSON files. No database, no server. Atomic writes with `fcntl` file locking ensure crash safety.
+All state lives in `~/.clawteam/` as JSON files. No database, no server. Atomic writes with cross-platform file locking ensure crash safety.
 
 | Setting | Env Var | Default |
 |---------|---------|---------|
 | Data directory | `CLAWTEAM_DATA_DIR` | `~/.clawteam` |
 | Transport | `CLAWTEAM_TRANSPORT` | `file` |
 | Workspace mode | `CLAWTEAM_WORKSPACE` | `auto` |
-| Spawn backend | `CLAWTEAM_DEFAULT_BACKEND` | `tmux` |
+| Spawn backend | `CLAWTEAM_DEFAULT_BACKEND` | `tmux` on Linux/macOS, `subprocess` on Windows |
 
 ---
 
@@ -448,9 +571,11 @@ clawteam team discover                    # List all teams
 clawteam team status <team>               # Show members
 clawteam team cleanup <team> --force      # Delete team
 
-# Spawn agents
+# Spawn agents (note: `spawn` uses --team; `launch` uses --team-name)
 clawteam spawn --team <team> --agent-name <name> --task "do this"
-clawteam spawn tmux codex --team <team> --agent-name <name> --task "do this"
+clawteam spawn codex --team <team> --agent-name <name> --task "do this"
+clawteam spawn --team <team> --agent-name <name> --task "do this" hermes
+clawteam spawn subprocess hermes --team <team> --agent-name <name> --task "do this"
 
 # Task management
 clawteam task create <team> "subject" -o <owner> --blocked-by <id1>,<id2>
@@ -467,7 +592,7 @@ clawteam inbox peek <team>                # read without consuming
 # Monitoring
 clawteam board show <team>                # terminal kanban
 clawteam board live <team> --interval 3   # auto-refresh
-clawteam board attach <team>              # tiled tmux view
+clawteam board attach <team>              # tiled tmux view (Linux/macOS/WSL)
 clawteam board serve --port 8080          # web UI
 ```
 
@@ -507,18 +632,9 @@ clawteam config health
 
 ---
 
-## Per-Agent Model Assignment (Preview)
+## Per-Agent Model Assignment
 
-> **Branch:** [`feat/per-agent-model-assignment`](https://github.com/win4r/ClawTeam-OpenClaw/tree/feat/per-agent-model-assignment)
->
-> This feature is available for early testing on a separate branch. It will be merged into `main` once the companion OpenClaw `--model` flag is shipped.
-
-Assign different models to different agent roles for better cost/performance tradeoffs in multi-agent swarms.
-
-```bash
-# Install from the feature branch
-pip install -e "git+https://github.com/win4r/ClawTeam-OpenClaw.git@feat/per-agent-model-assignment#egg=clawteam"
-```
+Assign different models to different agent roles for better cost/performance tradeoffs in multi-agent swarms. Uses a **7-level priority chain**: CLI > agent model > agent tier > template strategy > template model > config default > None.
 
 **Per-agent model in templates:**
 ```toml
@@ -544,26 +660,27 @@ clawteam launch my-template --model gpt-5.4          # override all agents
 clawteam launch my-template --model-strategy auto     # auto-assign by role
 ```
 
-See [issue #1](https://github.com/win4r/ClawTeam-OpenClaw/issues/1) for the full feature request and discussion.
-
 ---
+
 
 ## Roadmap
 
 | Version | What | Status |
 |---------|------|--------|
-| v0.3 | File + P2P transport, Web UI, multi-user, templates | Shipped |
-| v0.4 | Redis transport — cross-machine messaging | Planned |
-| v0.5 | Shared state layer — team config across machines | Planned |
-| v0.6 | Agent marketplace — community templates | Exploring |
-| v0.7 | Adaptive scheduling — dynamic task reassignment | Exploring |
+| v0.2 | OpenClaw default agent, workspace overlay, zombie detection, 11-language README | Shipped |
+| v0.3 | Research-backed intelligence, cost dashboard, circuit breaker, per-agent models, runtime injection | **Shipped** |
+| v0.4 | Windows full support, A2A Gateway integration | In Progress |
+| v0.5 | Agent template marketplace — community-contributed TOML templates | Planned |
+| v0.6 | Memory deep integration — per-team/per-task knowledge sharing | Planned |
 | v1.0 | Production-grade — auth, permissions, audit logs | Exploring |
 
 ---
 
 ## Contributing
 
-We welcome contributions:
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, code style, and PR guidelines.
+
+Areas we'd love help with:
 
 - **Agent integrations** — support for more CLI agents
 - **Team templates** — TOML templates for new domains
@@ -577,6 +694,7 @@ We welcome contributions:
 
 - [@karpathy/autoresearch](https://github.com/karpathy/autoresearch) — autonomous ML research framework
 - [OpenClaw](https://openclaw.ai) — default agent backend
+- [Hermes Agent](https://github.com/NousResearch/hermes-agent) — Nous Research's self-improving CLI agent
 - [Claude Code](https://claude.ai/claude-code) and [Codex](https://openai.com/codex) — supported AI coding agents
 - [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund) — hedge fund template inspiration
 - [CLI-Anything](https://github.com/HKUDS/CLI-Anything) — sister project

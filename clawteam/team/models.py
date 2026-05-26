@@ -40,6 +40,13 @@ class TaskStatus(str, Enum):
     blocked = "blocked"
 
 
+class TaskPriority(str, Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+    urgent = "urgent"
+
+
 class MessageType(str, Enum):
     message = "message"
     join_request = "join_request"
@@ -65,6 +72,7 @@ class TeamMember(BaseModel):
     agent_id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12], alias="agentId")
     agent_type: str = Field(default="general-purpose", alias="agentType")
     joined_at: str = Field(default_factory=_now_iso, alias="joinedAt")
+    model_name: str = Field(default="", alias="modelName")
 
 
 class TeamConfig(BaseModel):
@@ -112,6 +120,10 @@ class TeamMessage(BaseModel):
     # idle notification fields
     last_task: str | None = Field(default=None, alias="lastTask")
     status: str | None = None
+    # metacognition: agent self-assessed confidence (0.0-1.0)
+    confidence: float | None = None
+    # idempotency: dedup key to prevent duplicate messages on retry
+    idempotency_key: str | None = Field(default=None, alias="idempotencyKey")
 
 
 class TaskItem(BaseModel):
@@ -123,6 +135,7 @@ class TaskItem(BaseModel):
     subject: str
     description: str = ""
     status: TaskStatus = TaskStatus.pending
+    priority: TaskPriority = TaskPriority.medium
     owner: str = ""
     locked_by: str = Field(default="", alias="lockedBy")
     locked_at: str = Field(default="", alias="lockedAt")
@@ -132,3 +145,4 @@ class TaskItem(BaseModel):
     created_at: str = Field(default_factory=_now_iso, alias="createdAt")
     updated_at: str = Field(default_factory=_now_iso, alias="updatedAt")
     metadata: dict[str, Any] = Field(default_factory=dict)
+    idempotency_key: str | None = Field(default=None, alias="idempotencyKey")

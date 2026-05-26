@@ -13,7 +13,7 @@ description: >
   single agent can efficiently handle alone. Provides comprehensive guidance for
   using the ClawTeam CLI to orchestrate multi-agent teams with task management,
   messaging, and monitoring.
-version: 0.2.0
+version: 0.3.0
 ---
 
 # ClawTeam Multi-Agent Coordination
@@ -23,20 +23,6 @@ It provides file-based team management, inter-agent messaging, shared task track
 dependency resolution, plan approval workflows, and terminal-based monitoring dashboards.
 
 All operations are performed via the `clawteam` CLI. Data is stored in `~/.clawteam/` by default.
-
-## Installation
-
-```bash
-pip install clawteam
-```
-
-Requires Python 3.10+. For P2P transport support: `pip install clawteam[p2p]`.
-
-## Prerequisites
-
-- `tmux` installed (used by default spawn backend)
-- A CLI coding agent (e.g. `claude`, `codex`, or any command-line agent)
-- A git repository (for worktree isolation)
 
 ## Core Concepts
 

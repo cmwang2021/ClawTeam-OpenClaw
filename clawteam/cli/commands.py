@@ -431,7 +431,9 @@ def team_approve_join(
     # cleanup here since the message was just delivered; the joining agent will
     # pick it up from the permanent inbox if it misses the temp one.
     import shutil
+
     from clawteam.team.models import get_data_dir
+
     pending_dir = get_data_dir() / "teams" / team / "inboxes" / temp_inbox_name
     if pending_dir.exists():
         try:
@@ -481,7 +483,9 @@ def team_reject_join(
 
     # Clean up the _pending_ inbox directory
     import shutil
+
     from clawteam.team.models import get_data_dir
+
     pending_dir = get_data_dir() / "teams" / team / "inboxes" / temp_inbox_name
     if pending_dir.exists():
         try:
@@ -513,11 +517,31 @@ def team_cleanup(
         _output({"status": "not_found", "team": team}, lambda d: console.print(f"[yellow]Team '{team}' not found[/yellow]"))
 
 
+def _workspace_cwd_from_info(repo: str | None, ws_info) -> str:
+    from pathlib import Path as _Path
+
+    cwd = ws_info.worktree_path
+    subpath = getattr(ws_info, "repo_subpath", "") or ""
+    if subpath:
+        return str((_Path(ws_info.worktree_path) / subpath).resolve())
+    if repo:
+        requested_repo = _Path(repo).expanduser().resolve()
+        repo_root = _Path(ws_info.repo_root).resolve()
+        try:
+            relative_repo = requested_repo.relative_to(repo_root)
+        except ValueError:
+            relative_repo = None
+        if relative_repo and str(relative_repo) != ".":
+            return str((_Path(ws_info.worktree_path) / relative_repo).resolve())
+    return cwd
+
+
 @team_app.command("status")
 def team_status(
     team: str = typer.Argument(..., help="Team name"),
 ):
     """Show team status and members."""
+    from clawteam.spawn.registry import is_agent_alive
     from clawteam.team.manager import TeamManager
 
     config = TeamManager.get_team(team)
@@ -530,7 +554,13 @@ def team_status(
         "description": config.description,
         "leadAgentId": config.lead_agent_id,
         "createdAt": config.created_at,
-        "members": [m.model_dump(by_alias=True) for m in config.members],
+        "members": [
+            {
+                **m.model_dump(by_alias=True),
+                "alive": is_agent_alive(team, m.name),
+            }
+            for m in config.members
+        ],
     }
 
     def _human(d):
@@ -545,14 +575,18 @@ def team_status(
             table.add_column("User", style="magenta")
         table.add_column("ID", style="dim")
         table.add_column("Type")
+        table.add_column("Alive")
         table.add_column("Joined", style="dim")
         for m in d["members"]:
             row = [m.get("name", "")]
             if has_user:
                 row.append(m.get("user", ""))
+            alive = m.get("alive")
+            alive_label = "yes" if alive is True else "no" if alive is False else "unknown"
             row.extend([
                 m.get("agentId", ""),
                 m.get("agentType", ""),
+                alive_label,
                 (m.get("joinedAt") or "")[:19],
             ])
             table.add_row(*row)
@@ -753,6 +787,130 @@ def inbox_watch(
         exec_cmd=exec_cmd,
     )
     watcher.watch()
+
+
+# ============================================================================
+# Runtime Commands
+# ============================================================================
+
+runtime_app = typer.Typer(help="Tmux-only runtime routing and live injection")
+app.add_typer(runtime_app, name="runtime")
+
+
+@runtime_app.command("inject")
+def runtime_inject(
+    team: str = typer.Argument(..., help="Team name"),
+    agent: str = typer.Argument(..., help="Target agent name"),
+    source: str = typer.Option("system", "--source", "-s", help="Runtime notification source"),
+    channel: str = typer.Option("direct", "--channel", help="Runtime notification channel"),
+    priority: str = typer.Option("medium", "--priority", help="Runtime notification priority"),
+    summary: str = typer.Option(..., "--summary", help="Summary text for the injected notification"),
+    evidence: list[str] = typer.Option([], "--evidence", "-e", help="Repeatable evidence line"),
+    recommended_next_action: Optional[str] = typer.Option(
+        None,
+        "--recommended-next-action",
+        help="Optional recommended next action",
+    ),
+):
+    """Inject a structured runtime notification into a running tmux agent."""
+    from clawteam.spawn.tmux_backend import TmuxBackend
+    from clawteam.team.routing_policy import RuntimeEnvelope
+
+    envelope = RuntimeEnvelope(
+        source=source,
+        target=agent,
+        channel=channel,
+        priority=priority,
+        message_type="manual",
+        summary=summary,
+        evidence=list(evidence),
+        recommended_next_action=recommended_next_action,
+    )
+    ok, status = TmuxBackend().inject_runtime_message(team, agent, envelope)
+    if not ok:
+        console.print(f"[red]{status}[/red]")
+        raise typer.Exit(1)
+
+    _output(
+        {"team": team, "agent": agent, "status": status},
+        lambda data: console.print(f"[green]OK[/green] {data['status']}"),
+    )
+
+
+@runtime_app.command("watch")
+def runtime_watch(
+    team: str = typer.Argument(..., help="Team name"),
+    agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name (default: from env)"),
+    poll_interval: float = typer.Option(1.0, "--poll-interval", "-p", help="Poll interval in seconds"),
+    exec_cmd: Optional[str] = typer.Option(
+        None,
+        "--exec",
+        "-e",
+        help="Shell command to run for each new message (msg data in env vars)",
+    ),
+):
+    """Watch an inbox and route new messages into the running tmux session."""
+    from clawteam.identity import AgentIdentity
+    from clawteam.team.mailbox import MailboxManager
+    from clawteam.team.manager import TeamManager
+    from clawteam.team.router import RuntimeRouter
+    from clawteam.team.watcher import InboxWatcher
+
+    identity = AgentIdentity.from_env()
+    agent_name = TeamManager.resolve_inbox(team, agent or identity.agent_name, identity.user)
+    mailbox = MailboxManager(team)
+    router = RuntimeRouter(
+        team_name=team,
+        agent_name=agent_name,
+        session_agent_name=agent or identity.agent_name,
+    )
+
+    if not _json_output:
+        console.print(
+            f"Watching runtime routes for '{agent_name}' in team '{team}'... (Ctrl+C to stop)"
+        )
+        if exec_cmd:
+            console.print(f"  exec: {exec_cmd}")
+
+    watcher = InboxWatcher(
+        team_name=team,
+        agent_name=agent_name,
+        mailbox=mailbox,
+        poll_interval=poll_interval,
+        json_output=_json_output,
+        exec_cmd=exec_cmd,
+        runtime_router=router,
+    )
+    watcher.watch()
+
+
+@runtime_app.command("state")
+def runtime_state(
+    team: str = typer.Argument(..., help="Team name"),
+):
+    """Show persisted Phase 1 runtime throttle and dispatch state."""
+    from clawteam.team.routing_policy import DefaultRoutingPolicy
+
+    state = DefaultRoutingPolicy(team_name=team).read_state()
+
+    def _human(data):
+        console.print(
+            f"Runtime state for '{data['team']}' (throttle={data['throttleSeconds']}s)"
+        )
+        routes = data.get("routes", {})
+        if not routes:
+            console.print("[dim]No runtime route state.[/dim]")
+            return
+        for key in sorted(routes):
+            route = routes[key]
+            console.print(
+                f"  {route.get('source', '?')} -> {route.get('target', '?')} "
+                f"pending={route.get('pendingCount', 0)} "
+                f"status={route.get('lastDispatchStatus', 'idle')} "
+                f"flushAfter={route.get('flushAfter', '') or '-'}"
+            )
+
+    _output(state, _human)
 
 
 # ============================================================================
@@ -974,6 +1132,7 @@ def cost_report(
     provider: str = typer.Option("", "--provider", help="Provider name (e.g. anthropic)"),
     model: str = typer.Option("", "--model", help="Model name"),
     agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name (default: from env)"),
+    task_id: str = typer.Option("", "--task-id", help="Associated task ID"),
 ):
     """Report token usage and cost for an agent."""
     from clawteam.identity import AgentIdentity
@@ -989,6 +1148,7 @@ def cost_report(
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         cost_cents=cost_cents,
+        task_id=task_id,
     )
     data = _dump(event)
 
@@ -1015,6 +1175,7 @@ def cost_report(
 def cost_show(
     team: str = typer.Argument(..., help="Team name"),
     agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Filter by agent"),
+    by: Optional[str] = typer.Option(None, "--by", "-b", help="Breakdown dimension: agent, task, or model"),
 ):
     """Show cost summary and event history."""
     from clawteam.team.costs import CostStore
@@ -1025,10 +1186,12 @@ def cost_show(
     events = store.list_events(agent_name=agent or "")
     config = TeamManager.get_team(team)
     budget = config.budget_cents if config else 0.0
+    rate = store.cost_rate()
 
     data = {
         "summary": _dump(summary),
         "budget_cents": budget,
+        "cost_rate_per_min": rate,
         "events": [_dump(e) for e in events],
     }
 
@@ -1043,11 +1206,21 @@ def cost_show(
         console.print(f"  Input tokens:  {s.get('totalInputTokens', 0):,}")
         console.print(f"  Output tokens: {s.get('totalOutputTokens', 0):,}")
         console.print(f"  Events: {s.get('eventCount', 0)}")
-        by_agent = s.get("byAgent", {})
-        if by_agent:
-            console.print("  By agent:")
-            for a, c in sorted(by_agent.items()):
-                console.print(f"    {a}: ${c / 100:.4f}")
+        if rate > 0:
+            console.print(f"  Rate: ${rate / 100:.4f}/min")
+
+        # Dimension breakdown
+        dimension = by or "agent"
+        dimension_key = {
+            "agent": "byAgent",
+            "model": "byModel",
+            "task": "byTask",
+        }.get(dimension, "byAgent")
+        breakdown = s.get(dimension_key, {})
+        if breakdown:
+            console.print(f"  By {dimension}:")
+            for k, c in sorted(breakdown.items()):
+                console.print(f"    {k}: ${c / 100:.4f}")
 
         evts = d["events"]
         if evts:
@@ -1058,6 +1231,7 @@ def cost_show(
             table.add_column("Out Tokens", justify="right")
             table.add_column("Cost", justify="right")
             table.add_column("Model", style="dim")
+            table.add_column("Task", style="dim")
             for e in evts[-20:]:  # show last 20
                 table.add_row(
                     (e.get("reportedAt") or "")[:19],
@@ -1066,6 +1240,7 @@ def cost_show(
                     f"{e.get('outputTokens', 0):,}",
                     f"${e.get('costCents', 0) / 100:.4f}",
                     e.get("model", ""),
+                    e.get("taskId", ""),
                 )
             console.print(table)
 
@@ -1548,30 +1723,81 @@ def lifecycle_on_exit(
     team: str = typer.Option(..., "--team", "-t", help="Team name"),
     agent: str = typer.Option(..., "--agent", "-n", help="Agent name"),
 ):
-    """Handle agent process exit: reset in_progress tasks to pending, notify leader.
+    """Handle agent process exit: clean up session and reset in_progress tasks.
 
     This is called automatically as a post-exit hook when an agent process terminates.
     """
+    import subprocess
+
+    from clawteam.spawn.registry import (
+        get_agent_info,
+        is_agent_alive,
+        list_dead_agents,
+        unregister_agent,
+    )
+    from clawteam.spawn.sessions import SessionStore
     from clawteam.team.mailbox import MailboxManager
     from clawteam.team.manager import TeamManager
     from clawteam.team.models import TaskStatus
     from clawteam.team.tasks import TaskStore
 
+    # Always clean up the agent's session file, regardless of task status.
+    # Without this, session files accumulate indefinitely under
+    # ~/.clawteam/sessions/{team}/ after every agent exit.
+    SessionStore(team).clear(agent)
+
     store = TaskStore(team)
-    tasks = store.list_tasks()
+
+    # Release locks held by this agent FIRST — must happen before unregister
+    # to avoid a race where is_agent_alive returns None (no registry entry)
+    # and causes _acquire_lock to refuse overwriting a stale lock.
+    store.release_stale_locks()
 
     # Find this agent's in_progress tasks and reset them
+    tasks = store.list_tasks()
     abandoned = [
         t for t in tasks
         if t.owner == agent and t.status == TaskStatus.in_progress
     ]
 
+    # Save spawn info BEFORE unregistering — needed for auto-respawn.
+    saved_spawn_info = get_agent_info(team, agent)
+
+    # Unregister from spawn registry so is_agent_alive returns None for this agent.
+    # Guard: only unregister if the agent is already dead (avoids removing a live entry
+    # if the hook fires before the process actually exits).
+    if is_agent_alive(team, agent) is False:
+        unregister_agent(team, agent)
+
+        # Garbage-collect any other dead agents in the same team while we're here.
+        for dead in list_dead_agents(team):
+            unregister_agent(team, dead)
+
     if not abandoned:
         # Agent exited cleanly (all tasks already completed or pending)
+        # Registry cleanup has already happened above.
         return
 
     for t in abandoned:
         store.update(t.id, status=TaskStatus.pending)
+
+    exit_detail = ""
+    info = get_agent_info(team, agent)
+    if info and info.get("backend") == "tmux" and info.get("tmux_target"):
+        try:
+            pane = subprocess.run(
+                ["tmux", "capture-pane", "-p", "-t", info["tmux_target"], "-S", "-80"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if pane.returncode == 0 and pane.stdout.strip():
+                lines = [line.rstrip() for line in pane.stdout.splitlines() if line.strip()]
+                tail = " | ".join(lines[-6:])
+                if tail:
+                    exit_detail = f" Last output: {tail[:700]}"
+        except (subprocess.TimeoutExpired, OSError):
+            exit_detail = ""
 
     # Notify leader
     leader_name = TeamManager.get_leader_name(team)
@@ -1582,7 +1808,7 @@ def lifecycle_on_exit(
             from_agent=agent,
             to=leader_name,
             content=f"Agent '{agent}' exited unexpectedly. "
-                    f"Reset {len(abandoned)} task(s) to pending: {task_subjects}",
+                    f"Reset {len(abandoned)} task(s) to pending: {task_subjects}.{exit_detail}",
         )
 
     _output(
@@ -1597,6 +1823,92 @@ def lifecycle_on_exit(
         ),
     )
 
+    # --- Auto-respawn: attempt to restart the agent if pending tasks remain ---
+    pending_tasks = [t for t in store.list_tasks() if t.status == TaskStatus.pending]
+    if pending_tasks and saved_spawn_info:
+        from clawteam.spawn.respawn import respawn_agent
+
+        respawn_result = respawn_agent(team, agent, spawn_info=saved_spawn_info)
+        if respawn_result.startswith("ok:"):
+            _output(
+                {"status": "agent_respawned", "agent": agent, "detail": respawn_result},
+                lambda d: console.print(
+                    f"  [green]Auto-respawned agent '{agent}'.[/green] {d['detail']}"
+                ),
+            )
+            if leader_name:
+                mailbox.send(
+                    from_agent=agent,
+                    to=leader_name,
+                    content=f"Agent '{agent}' auto-respawned. {respawn_result}",
+                )
+        else:
+            _output(
+                {"status": "respawn_failed", "agent": agent, "detail": respawn_result},
+                lambda d: console.print(
+                    f"  [red]Auto-respawn failed for '{agent}':[/red] {d['detail']}"
+                ),
+            )
+            if leader_name:
+                mailbox.send(
+                    from_agent=agent,
+                    to=leader_name,
+                    content=f"Auto-respawn failed for '{agent}': {respawn_result}. "
+                            "Manual intervention may be needed.",
+                )
+
+
+@lifecycle_app.command("check-zombies")
+def lifecycle_check_zombies(
+    team: str = typer.Option(..., "--team", "-t", help="Team name"),
+    max_hours: float = typer.Option(2.0, "--max-hours", help="Warn if agent has been running longer than this many hours"),
+):
+    """Warn about agents that have been running unusually long (possible zombies).
+
+    Agents that never called on-exit will accumulate as background processes.
+    This command helps identify them so you can decide whether to stop them manually.
+    """
+    from clawteam.spawn.registry import list_zombie_agents
+
+    zombies = list_zombie_agents(team, max_hours=max_hours)
+
+    if not zombies:
+        _output(
+            {"team": team, "zombies": []},
+            lambda d: console.print(f"[green]✓[/green] No zombie agents detected for team '{team}'"),
+        )
+        return
+
+    def _fmt(d: dict) -> None:
+        console.print(
+            f"[bold yellow]⚠ {len(d['zombies'])} zombie agent(s) detected in team '{team}':[/bold yellow]"
+        )
+        for z in d["zombies"]:
+            console.print(
+                f"  [yellow]• {z['agent_name']}[/yellow]  "
+                f"pid={z['pid']}  backend={z['backend']}  "
+                f"running={z['running_hours']}h"
+            )
+        console.print(
+            "\n[dim]These processes did not call lifecycle on-exit. "
+            "Inspect them manually or run: clawteam lifecycle stop-agent --team <team> --agent <name>[/dim]"
+        )
+
+    _output({"team": team, "zombies": zombies}, _fmt)
+    raise typer.Exit(1)
+
+
+def _resolve_spawn_backend_and_command(
+    backend: Optional[str],
+    command: list[str] | None,
+) -> tuple[Optional[str], list[str]]:
+    """Treat a non-backend positional token as the first command token."""
+    normalized_command = list(command or [])
+    if backend is not None and backend not in ("tmux", "subprocess"):
+        normalized_command = [backend, *normalized_command]
+        backend = None
+    return backend, normalized_command
+
 
 # ============================================================================
 # Spawn Command
@@ -1604,8 +1916,11 @@ def lifecycle_on_exit(
 
 @app.command("spawn")
 def spawn_agent(
-    backend: Optional[str] = typer.Argument(None, help="Backend: tmux (default) or subprocess"),
-    command: list[str] = typer.Argument(None, help="Command and arguments to run (default: claude)"),
+    backend: Optional[str] = typer.Argument(
+        None,
+        help="Backend: platform default (tmux on Linux/macOS, subprocess on Windows) or explicit backend",
+    ),
+    command: list[str] = typer.Argument(None, help="Command and arguments to run (default: openclaw)"),
     team: Optional[str] = typer.Option(None, "--team", "-t", help="Team name"),
     agent_name: Optional[str] = typer.Option(None, "--agent-name", "-n", help="Agent name"),
     agent_type: str = typer.Option("general-purpose", "--agent-type", help="Agent type"),
@@ -1614,24 +1929,38 @@ def spawn_agent(
     repo: Optional[str] = typer.Option(None, "--repo", help="Git repo path (default: cwd)"),
     skip_permissions: Optional[bool] = typer.Option(None, "--skip-permissions/--no-skip-permissions", help="Skip tool approval for claude (default: from config, true)"),
     resume: bool = typer.Option(False, "--resume", "-r", help="Resume previous session if available"),
+    openclaw_agent: Optional[str] = typer.Option(None, "--openclaw-agent", help="OpenClaw agent id to use (routes to a specific agent config/model)"),
+    force: bool = typer.Option(False, "--force", "-f", help="Suppress max-agent warnings"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Model alias or ID (passed to backend via --model)"),
 ):
     """Spawn a new agent process with identity + task as its initial prompt.
 
-    Defaults: tmux backend, openclaw command, git worktree isolation, skip-permissions on.
+    Defaults: platform backend, openclaw command, git worktree isolation, skip-permissions on.
     """
     from clawteam.config import get_effective
-    from clawteam.spawn import get_backend
+    from clawteam.spawn import get_backend, normalize_backend_name
 
+    backend, command = _resolve_spawn_backend_and_command(backend, command)
     # Resolve defaults from config
     if backend is None:
         backend, _ = get_effective("default_backend")
-        backend = backend or "tmux"
+    backend = normalize_backend_name(backend or None)
     if not command:
         command = ["openclaw"]
 
     _team = team or "default"
     _name = agent_name or f"agent-{uuid.uuid4().hex[:6]}"
     _id = uuid.uuid4().hex[:12]
+
+    # Check agent count against recommended max (arXiv:2512.08296)
+    if not force:
+        from clawteam.spawn.registry import get_registry
+        from clawteam.templates import DEFAULT_MAX_AGENTS, check_agent_count
+
+        current_count = len(get_registry(_team))
+        warning = check_agent_count(current_count, max_agents=DEFAULT_MAX_AGENTS)
+        if warning:
+            console.print(f"[yellow]{warning}[/yellow]", stderr=True)
 
     # Resolve skip_permissions from config
     if skip_permissions is None:
@@ -1665,7 +1994,7 @@ def spawn_agent(
                 raise typer.Exit(1)
         else:
             ws_info = ws_mgr.create_workspace(team_name=_team, agent_name=_name, agent_id=_id)
-            cwd = ws_info.worktree_path
+            cwd = _workspace_cwd_from_info(repo, ws_info)
             ws_branch = ws_info.branch_name
             console.print(f"[dim]Workspace: {cwd} (branch: {ws_branch})[/dim]")
 
@@ -1730,6 +2059,8 @@ def spawn_agent(
         prompt=prompt,
         cwd=cwd,
         skip_permissions=skip_permissions,
+        openclaw_agent=openclaw_agent,
+        model=model,
     )
 
     if result.startswith("Error"):
@@ -2151,11 +2482,15 @@ def launch_team(
     workspace: bool = typer.Option(False, "--workspace/--no-workspace", "-w"),
     repo: Optional[str] = typer.Option(None, "--repo", help="Git repo path"),
     command_override: Optional[list[str]] = typer.Option(None, "--command", help="Override agent command"),
+    force: bool = typer.Option(False, "--force", "-f", help="Suppress max-agent warnings"),
+    model_override: Optional[str] = typer.Option(None, "--model", help="Override model for ALL agents"),
+    model_strategy_override: Optional[str] = typer.Option(None, "--model-strategy", help="Model strategy: auto | none"),
 ):
     """Launch a full agent team from a template with one command."""
     import os as _os
 
-    from clawteam.spawn import get_backend
+    from clawteam.model_resolution import resolve_model
+    from clawteam.spawn import get_backend, normalize_backend_name
     from clawteam.spawn.prompt import build_agent_prompt
     from clawteam.team.manager import TeamManager
     from clawteam.team.tasks import TaskStore
@@ -2168,9 +2503,18 @@ def launch_team(
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1)
 
+    # Check agent count against template max_agents
+    if not force:
+        from clawteam.templates import check_agent_count
+
+        total_agents = len(tmpl.agents) + 1  # agents + leader
+        warning = check_agent_count(total_agents - 1, tmpl.max_agents)
+        if warning:
+            console.print(f"[yellow]{warning}[/yellow]", stderr=True)
+
     # 2. Determine team name
     t_name = team_name or f"{tmpl.name}-{uuid.uuid4().hex[:6]}"
-    be_name = backend or tmpl.backend
+    be_name = normalize_backend_name(backend or tmpl.backend)
     cmd = command_override or tmpl.command
 
     # 3. Create team
@@ -2226,6 +2570,10 @@ def launch_team(
             raise typer.Exit(1)
 
     # 8. Spawn all agents (leader first, then workers)
+    # Load config once for model resolution (avoid re-reading per agent)
+    from clawteam.config import load_config as _load_config
+    _model_cfg = _load_config()
+
     all_agents = [tmpl.leader] + list(tmpl.agents)
     spawned: list[dict[str, str]] = []
 
@@ -2248,7 +2596,7 @@ def launch_team(
             ws_info = ws_mgr.create_workspace(
                 team_name=t_name, agent_name=agent.name, agent_id=a_id,
             )
-            cwd = ws_info.worktree_path
+            cwd = _workspace_cwd_from_info(repo, ws_info)
             ws_branch = ws_info.branch_name
 
         # Build prompt
@@ -2263,6 +2611,10 @@ def launch_team(
             workspace_dir=cwd or "",
             workspace_branch=ws_branch,
             memory_scope=f"custom:team-{t_name}",
+            intent=agent.intent or "",
+            end_state=agent.end_state or "",
+            constraints=agent.constraints,
+            team_size=len(all_agents),
         )
 
         # Resolve skip_permissions from config
@@ -2270,7 +2622,19 @@ def launch_team(
         sp_val, _ = get_effective("skip_permissions")
         _skip = str(sp_val).lower() not in ("false", "0", "no", "")
 
-        result = be.spawn(
+        # Resolve model for this agent (CLI override > agent > tier > strategy > template > config)
+        resolved_model = resolve_model(
+            cli_model=model_override,
+            agent_model=agent.model,
+            agent_model_tier=agent.model_tier,
+            template_model_strategy=model_strategy_override or tmpl.model_strategy,
+            template_model=tmpl.model,
+            config_default_model=_model_cfg.default_model,
+            agent_type=agent.type,
+            tier_overrides=_model_cfg.model_tiers or None,
+        )
+
+        spawn_kwargs = dict(
             command=a_cmd,
             agent_name=agent.name,
             agent_id=a_id,
@@ -2279,7 +2643,19 @@ def launch_team(
             prompt=prompt,
             cwd=cwd,
             skip_permissions=_skip,
+            model=resolved_model,
         )
+        if agent.retry:
+            from clawteam.spawn import spawn_with_retry
+            result = spawn_with_retry(
+                be,
+                max_retries=agent.retry.max_retries,
+                backoff_base=agent.retry.backoff_base_seconds,
+                backoff_max=agent.retry.backoff_max_seconds,
+                **spawn_kwargs,
+            )
+        else:
+            result = be.spawn(**spawn_kwargs)
         spawned.append({"name": agent.name, "id": a_id, "type": agent.type, "result": result})
 
     # 9. Output summary

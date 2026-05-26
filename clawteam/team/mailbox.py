@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 import uuid
 
+from clawteam.paths import ensure_within_root, validate_identifier
 from clawteam.team.models import MessageType, TeamMessage, get_data_dir
 from clawteam.transport.base import Transport
+from clawteam.transport.claimed import ClaimedMessage
 
 
 def _default_transport(team_name: str) -> Transport:
@@ -38,8 +41,9 @@ class MailboxManager:
 
     def __init__(self, team_name: str, transport: Transport | None = None):
         self.team_name = team_name
+        validate_identifier(team_name, "team name")
         self._transport = transport or _default_transport(team_name)
-        self._events_dir = get_data_dir() / "teams" / team_name / "events"
+        self._events_dir = ensure_within_root(get_data_dir() / "teams", team_name, "events")
         self._events_dir.mkdir(parents=True, exist_ok=True)
 
     def _log_event(self, msg: TeamMessage) -> None:
@@ -52,7 +56,7 @@ class MailboxManager:
             msg.model_dump_json(indent=2, by_alias=True, exclude_none=True),
             encoding="utf-8",
         )
-        tmp.rename(path)
+        os.replace(str(tmp), str(path))
 
     def get_event_log(self, limit: int = 100) -> list[TeamMessage]:
         """Read event log (newest first). Non-destructive."""
@@ -85,8 +89,15 @@ class MailboxManager:
         plan: str | None = None,
         last_task: str | None = None,
         status: str | None = None,
+        idempotency_key: str | None = None,
     ) -> TeamMessage:
         from clawteam.team.manager import TeamManager
+
+        # Idempotency: return existing message if key matches
+        if idempotency_key:
+            existing = self._find_by_idempotency_key(idempotency_key)
+            if existing is not None:
+                return existing
 
         delivery_target = TeamManager.resolve_inbox(self.team_name, to)
         msg = TeamMessage(
@@ -108,6 +119,7 @@ class MailboxManager:
             plan=plan,
             last_task=last_task,
             status=status,
+            idempotency_key=idempotency_key,
         )
         data = msg.model_dump_json(indent=2, by_alias=True, exclude_none=True).encode("utf-8")
         self._transport.deliver(delivery_target, data)
@@ -152,8 +164,37 @@ class MailboxManager:
                 messages.append(msg)
         return messages
 
+    @staticmethod
+    def _parse_messages(raw: list[bytes]) -> list[TeamMessage]:
+        result: list[TeamMessage] = []
+        for item in raw:
+            try:
+                result.append(TeamMessage.model_validate(json.loads(item)))
+            except Exception:
+                continue
+        return result
+
+    def _parse_claimed_messages(self, claimed: list[ClaimedMessage]) -> list[TeamMessage]:
+        result: list[TeamMessage] = []
+        for item in claimed:
+            try:
+                message = TeamMessage.model_validate(json.loads(item.data))
+            except Exception as exc:
+                item.quarantine(str(exc))
+                continue
+            item.ack()
+            result.append(message)
+        return result
+
     def receive(self, agent_name: str, limit: int = 10) -> list[TeamMessage]:
-        """Receive and delete messages from an agent's inbox (FIFO)."""
+        """Receive parsed messages from an agent's inbox (FIFO).
+
+        When a transport supports claimed messages, schema validation and
+        quarantine decisions happen here after the raw bytes have been claimed.
+        """
+        claim_messages = getattr(self._transport, "claim_messages", None)
+        if callable(claim_messages):
+            return self._parse_claimed_messages(claim_messages(agent_name, limit))
         raw = self._transport.fetch(agent_name, limit=limit, consume=True)
         return [TeamMessage.model_validate(json.loads(r)) for r in raw]
 
@@ -161,6 +202,18 @@ class MailboxManager:
         """Return pending messages without consuming them."""
         raw = self._transport.fetch(agent_name, consume=False)
         return [TeamMessage.model_validate(json.loads(r)) for r in raw]
+
+    def _find_by_idempotency_key(self, key: str) -> TeamMessage | None:
+        """Check event log for a message with the same idempotency key."""
+        for f in sorted(self._events_dir.glob("evt-*.json"), reverse=True):
+            try:
+                data = json.loads(f.read_text("utf-8"))
+                msg = TeamMessage.model_validate(data)
+                if msg.idempotency_key == key:
+                    return msg
+            except Exception:
+                continue
+        return None
 
     def peek_count(self, agent_name: str) -> int:
         return self._transport.count(agent_name)

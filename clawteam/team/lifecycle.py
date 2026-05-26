@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import logging
+import os
 import shutil
+from typing import Any
 
+from clawteam.paths import ensure_within_root, validate_identifier
 from clawteam.team.mailbox import MailboxManager
 from clawteam.team.models import MessageType, get_data_dir
+
+logger = logging.getLogger(__name__)
 
 
 class LifecycleManager:
@@ -28,6 +34,7 @@ class LifecycleManager:
             msg_type=MessageType.shutdown_request,
             reason=reason or None,
         )
+        _notify_gateway_shutdown(to_agent, self.team_name)
         return msg.request_id
 
     def approve_shutdown(
@@ -78,8 +85,19 @@ class LifecycleManager:
             status=task_status or None,
         )
 
+    def approve_shutdown_and_notify(
+        self,
+        agent_name: str,
+        request_id: str,
+        requester_name: str,
+    ) -> None:
+        """Approve shutdown and notify gateway."""
+        self.approve_shutdown(agent_name, request_id, requester_name)
+        _notify_gateway_shutdown(agent_name, self.team_name)
+
     @staticmethod
     def cleanup_team(team_name: str) -> bool:
+        validate_identifier(team_name, "team name")
         # Best-effort cleanup of git workspaces
         try:
             from clawteam.workspace import get_workspace_manager
@@ -89,13 +107,74 @@ class LifecycleManager:
         except Exception:
             pass
 
-        team_dir = get_data_dir() / "teams" / team_name
-        tasks_dir = get_data_dir() / "tasks" / team_name
-        costs_dir = get_data_dir() / "costs" / team_name
-        sessions_dir = get_data_dir() / "sessions" / team_name
+        team_dir = ensure_within_root(get_data_dir() / "teams", team_name)
+        tasks_dir = ensure_within_root(get_data_dir() / "tasks", team_name)
+        costs_dir = ensure_within_root(get_data_dir() / "costs", team_name)
+        sessions_dir = ensure_within_root(get_data_dir() / "sessions", team_name)
         cleaned = False
         for d in (team_dir, tasks_dir, costs_dir, sessions_dir):
             if d.exists():
                 shutil.rmtree(d)
                 cleaned = True
         return cleaned
+
+
+def _notify_gateway_shutdown(agent_name: str, team_name: str) -> None:
+    """Best-effort notify gateway of agent shutdown via env-configured URL."""
+    gateway_url = os.environ.get("CLAWTEAM_GATEWAY_URL", "")
+    if not gateway_url:
+        return
+    try:
+        from clawteam.team.gateway import notify_gateway_agent_status
+        from clawteam.team.manager import TeamManager
+
+        member = TeamManager.get_member(team_name, agent_name)
+        agent_id = member.agent_id if member else ""
+        notify_gateway_agent_status(
+            gateway_url=gateway_url,
+            agent_name=agent_name,
+            agent_id=agent_id,
+            status="shutdown",
+            team_name=team_name,
+        )
+    except Exception as exc:
+        logger.debug("Gateway shutdown notification failed (best-effort): %s", exc)
+
+
+def handle_agent_exit(team_name: str, agent_name: str) -> dict[str, Any] | None:
+    """Reset abandoned tasks and notify the leader when an agent exits."""
+    from clawteam.team.manager import TeamManager
+    from clawteam.team.models import TaskStatus
+    from clawteam.team.tasks import TaskStore
+
+    store = TaskStore(team_name)
+    tasks = store.list_tasks()
+
+    abandoned = [
+        t for t in tasks
+        if t.owner == agent_name and t.status == TaskStatus.in_progress
+    ]
+    if not abandoned:
+        return None
+
+    for task in abandoned:
+        store.update(task.id, status=TaskStatus.pending)
+
+    leader_name = TeamManager.get_leader_name(team_name)
+    if leader_name:
+        mailbox = MailboxManager(team_name)
+        task_subjects = ", ".join(task.subject for task in abandoned)
+        mailbox.send(
+            from_agent=agent_name,
+            to=leader_name,
+            content=(
+                f"Agent '{agent_name}' exited unexpectedly. "
+                f"Reset {len(abandoned)} task(s) to pending: {task_subjects}"
+            ),
+        )
+
+    return {
+        "status": "agent_exited",
+        "agent": agent_name,
+        "abandoned_tasks": [{"id": task.id, "subject": task.subject} for task in abandoned],
+    }
