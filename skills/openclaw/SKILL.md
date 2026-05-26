@@ -1,6 +1,6 @@
 ---
 name: clawteam
-description: "Multi-agent swarm coordination via the ClawTeam CLI. Use when the user wants to create agent teams, spawn multiple agents to work in parallel, coordinate tasks with dependencies, broadcast messages between agents, monitor progress via kanban board, or launch pre-built team templates (hedge-fund, code-review, research-paper). ClawTeam uses git worktree isolation + tmux + filesystem-based messaging. Trigger phrases: team, swarm, multi-agent, clawteam, spawn agents, parallel agents, agent team."
+description: "Multi-agent swarm coordination via the ClawTeam CLI with Efficient Context Routing. Use when the user wants to create agent teams, spawn multiple agents to work in parallel, coordinate tasks with dependencies, broadcast messages between agents, monitor progress via kanban board, or launch pre-built team templates (hedge-fund, code-review, research-paper). ClawTeam uses git worktree isolation + tmux + filesystem-based messaging. Includes context-minimization rules for spawn prompts, inbox messages, and result convergence. Trigger phrases: team, swarm, multi-agent, clawteam, spawn agents, parallel agents, agent team."
 ---
 
 # ClawTeam — Multi-Agent Swarm Coordination
@@ -97,6 +97,31 @@ Each spawned agent gets:
 - An auto-injected coordination prompt (how to use clawteam CLI)
 - Environment variables: `CLAWTEAM_AGENT_NAME`, `CLAWTEAM_TEAM_NAME`, etc.
 
+### Context Pack Format (Efficient Context Routing)
+
+The `--task` parameter is the worker's **entire initial context**. Use this minimal format:
+
+```
+[TASK] Single clear objective
+[RULES] Hard constraints (max 3)
+[CONTEXT] Relevant facts for this task only (max 3 items, each ≤ 300 chars)
+[OUTPUT] Expected output format
+[STOP] Completion criteria
+```
+
+**NEVER** do this:
+- `--task "$(cat full_history.md)"` — injecting full project history
+- `--task "$(cat entire_codebase.txt)"` — dumping entire codebase
+- Copying another worker's full output into a new spawn
+
+**Example:**
+```bash
+clawteam spawn -t webapp -n backend --task "[TASK] Implement OAuth2 login module
+[RULES] Use passport.js. Must support Google + GitHub providers. All secrets via env vars.
+[CONTEXT] API schema at docs/api.md. DB uses PostgreSQL with Prisma ORM.
+[OUTPUT] Working auth routes in src/auth/ with tests passing
+[STOP] All tests in tests/auth.test.ts pass"
+
 **Spawn safety features:**
 - Commands are pre-validated before launch — you get a clear error if the agent CLI is not installed
 - If a spawn fails, the registered team member and worktree are automatically rolled back
@@ -188,7 +213,10 @@ When YOU are the leader agent, follow this pattern to autonomously manage a swar
 1. Understand the user's goal
 2. Break it into independent subtasks
 3. Identify dependencies between tasks (what must finish before what)
-4. Decide how many worker agents are needed
+4. Decide how many worker agents are needed — use the MINIMUM number
+   (if 2 workers can do it, don't spawn 5)
+5. For each worker, prepare a Context Pack with only task-relevant info
+   (see Context Pack Format above — never inject full history)
 ```
 
 ### Phase 2: Setup
@@ -204,13 +232,31 @@ clawteam task create <team> "Build frontend" -o frontend --blocked-by abc123
 clawteam task create <team> "Integration tests" -o tester --blocked-by <backend-id>,<frontend-id>
 ```
 
-### Phase 3: Spawn Workers
+### Phase 3: Spawn Workers (with Context Pack)
 ```bash
-# Each spawn launches an openclaw tui in its own tmux window
-clawteam spawn -t <team> -n architect --task "Design REST API schema for <goal>"
-clawteam spawn -t <team> -n backend --task "Implement backend based on API schema"
-clawteam spawn -t <team> -n frontend --task "Build React frontend"
-clawteam spawn -t <team> -n tester --task "Write and run integration tests"
+# Each spawn uses a minimal Context Pack — NOT full project history
+clawteam spawn -t <team> -n architect --task "[TASK] Design REST API schema for <goal>
+[RULES] RESTful conventions. Must support pagination.
+[CONTEXT] Target stack: Node.js + Express + PostgreSQL
+[OUTPUT] OpenAPI 3.0 spec in docs/api.yaml
+[STOP] Schema covers all CRUD endpoints"
+
+clawteam spawn -t <team> -n backend --task "[TASK] Implement backend from API schema
+[RULES] Follow docs/api.yaml exactly. Use Prisma ORM.
+[CONTEXT] Schema will be at docs/api.yaml (blocked until architect completes)
+[OUTPUT] Working Express routes in src/routes/
+[STOP] All routes return correct status codes"
+
+clawteam spawn -t <team> -n frontend --task "[TASK] Build React dashboard frontend
+[RULES] Use React 19 + TypeScript. Mobile-responsive.
+[CONTEXT] API endpoints defined in docs/api.yaml
+[OUTPUT] Working React app in src/frontend/
+[STOP] All pages render without errors"
+
+clawteam spawn -t <team> -n tester --task "[TASK] Write integration tests
+[RULES] Use Jest. Cover auth + CRUD flows.
+[OUTPUT] Test suite in tests/ with >80% coverage
+[STOP] All tests pass"
 ```
 
 ### Phase 4: Monitor Loop
@@ -237,9 +283,15 @@ if done == total: print('ALL DONE'); sys.exit(0)
 done
 ```
 
-### Phase 5: Converge & Report
+### Phase 5: Converge & Report (Context-Aware)
 
 **IMPORTANT**: Proactively deliver results to the user as soon as all tasks complete. Do NOT wait for the user to ask. Include the final output, a summary, and cost/timing stats. ALWAYS merge worktrees and clean up.
+
+**Context convergence rules:**
+- Only keep **summaries** from each worker's result, not their full reasoning chains
+- **Dedup** overlapping conclusions — if two workers report the same finding, keep one
+- Do NOT broadcast one worker's full output to other workers via inbox
+- Send high-value delta (new SOPs, key decisions, error fixes) to memory-distiller for long-term retention
 
 ```bash
 # After all tasks complete — do ALL of these steps:
@@ -257,11 +309,14 @@ clawteam team cleanup <team> --force  # Clean up — ALWAYS do this last
 ### Decision Rules for the Leader
 - **Independent tasks** → spawn workers in parallel
 - **Sequential tasks** → use `--blocked-by` to chain them; ClawTeam auto-unblocks
-- **Worker asks for help** → check inbox, provide guidance via `inbox send`
+- **Worker asks for help** → check inbox, provide **concise** guidance via `inbox send` (≤ 200 chars)
 - **Worker stuck** → check task status; if `in_progress` too long, send a nudge via `inbox send`
 - **Worker done** → verify result via inbox message, then move to next phase
 - **All done** → merge worktrees, deliver results to user proactively, then cleanup
 - **Always** → start background monitoring immediately after spawn; never wait for user to ask for status
+- **Context budget** → simple task = do it yourself (no spawn); medium = 1-2 workers; complex = 3+ workers
+- **Cost awareness** → use `clawteam cost budget <team> <dollars>` before spawning; track with `clawteam cost show`
+- **No context flooding** → never put full history, full logs, or full file contents in spawn --task or inbox send
 
 ## Data Location
 
@@ -271,3 +326,8 @@ All state stored in `~/.clawteam/`:
 - Plans: `~/.clawteam/plans/<team>/<agent>-<plan_id>.md` (team-scoped, isolated per team)
 - Messages: `~/.clawteam/teams/<team>/inboxes/<agent>/msg-*.json`
 - Costs: `~/.clawteam/costs/<team>/`
+
+## Efficient Context Routing (Deep Dive)
+
+For the full context routing specification — including 5-layer context hierarchy, dedup rules, token budget profiles (Premium/Standard/Economy), A2A cross-node collaboration, and OpenSpec verification metrics — see:
+- **`efficient-context-routing.md`** — Complete Efficient Context Routing rules adapted for ClawTeam

@@ -1,0 +1,85 @@
+[template]
+name = "shrimp-patrol"
+description = "蝦家班日常巡檢：檢查 Nest2 各系統健康狀態"
+command = ["openclaw"]
+backend = "tmux"
+
+[template.leader]
+name = "patrol-leader"
+type = "patrol-leader"
+task = """你是蝦家巡邏隊隊長。
+目標: {goal}
+
+工作流程：
+1. 等待各檢查員回報 via `clawteam inbox receive {team_name}`
+2. 彙總成日報：
+   - 🟢 正常項目
+   - 🟡 需注意項目
+   - 🔴 告警項目
+3. 在所有 checker 完成後產出巡檢摘要
+4. 用 `clawteam inbox broadcast {team_name} "巡檢完成：[摘要]"` 廣播結果
+
+完成後更新你的任務狀態。"""
+
+[[template.agents]]
+name = "check-9router"
+type = "system-checker"
+task = """檢查 9router 健康狀態。
+目標: {goal}
+
+檢查項目：
+- 各 Provider 在線狀態（curl health endpoint）
+- 過去 1 小時 429 回應次數
+- Latency P99（從 metrics-aggregator 讀取）
+- Active Steering 熔斷器是否開啟
+- Pro 帳號剩餘配額
+
+回報: `clawteam inbox send {team_name} patrol-leader "9ROUTER: [🟢/🟡/🔴] | [摘要]"`
+完成: `clawteam task update {team_name} [task-id] --status completed`"""
+
+[[template.agents]]
+name = "check-memory"
+type = "system-checker"
+task = """檢查記憶系統健康狀態。
+目標: {goal}
+
+檢查項目：
+- Vertex AI Search 是否回應正常
+- 蝦米最近 24h 蒸餾紀錄數量
+- Embedding API 429 頻率
+- 記憶重複收錄率
+
+回報: `clawteam inbox send {team_name} patrol-leader "MEMORY: [🟢/🟡/🔴] | [摘要]"`
+完成: `clawteam task update {team_name} [task-id] --status completed`"""
+
+[[template.agents]]
+name = "check-infra"
+type = "system-checker"
+task = """檢查 Nest2 基礎設施。
+目標: {goal}
+
+檢查項目：
+- Docker 容器運行狀態（docker ps）
+- 磁碟使用率（df -h）
+- 記憶體使用率（free -h）
+- CPU 負載（uptime）
+- 阿百本體容器健康度
+
+回報: `clawteam inbox send {team_name} patrol-leader "INFRA: [🟢/🟡/🔴] | [摘要]"`
+完成: `clawteam task update {team_name} [task-id] --status completed`"""
+
+[[template.tasks]]
+subject = "彙總巡檢報告"
+owner = "patrol-leader"
+
+[[template.tasks]]
+subject = "檢查 9router 系統"
+owner = "check-9router"
+
+[[template.tasks]]
+subject = "檢查記憶系統"
+owner = "check-memory"
+
+[[template.tasks]]
+subject = "檢查 Nest2 基礎設施"
+owner = "check-infra"
