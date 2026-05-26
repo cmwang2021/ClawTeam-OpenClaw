@@ -1,8 +1,8 @@
-# shrimp-world-map 驗證矩陣 v0.4 — 即時驗證數據
-# 更新日期: 2026-05-26T16:00+08:00
+# shrimp-world-map 驗證矩陣 v0.5 — 即時驗證數據
+# 更新日期: 2026-05-26T16:38+08:00
 # Verifier: Antigravity Agent (Gemini 3.5 Flash / Claude 4.6)
 # Session: 6993292a-16c2-4582-823f-485affdfed14
-# 版本說明: v0.4 成功打通 Tailscale Shared Node，實現跨域 A2A 雙向 Pong 連動
+# 版本說明: v0.5 成功啟動二創 opencode 算力心臟 shrimp-proxy 並徹底完成各大 AI 代理工具鏈 (gemini, claude, agy) 的無頭 (headless) 驗證與完全攻略配置
 
 # ============================================================
 # 根因分析摘要: Nest 2.0 服務與通道問題
@@ -228,7 +228,7 @@ fixes:
   - id: F5
     priority: P1
     action: "驗證 shrimp-gemini-cli A2A 工具"
-    status: pending
+    status: completed
 
 # 驗收對照
 acceptance:
