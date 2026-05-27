@@ -9,6 +9,11 @@
 經過深入的現況診斷與測試，**Nest 2.0 上的 ClawTeam 控制平面與 OpenClaw 引擎架構十分穩固**，具備優秀的高可用隔離機制與靈活的協同能力。
 然而，在自動化及無頭 (Headless) 運行情境中，由於**命令行參數解析歧義**與**安全信任機制 (Google Gemini CLI Untrusted Workspace)** 的雙重影響，導致代理啟動時出現閃退或思維鏈掛起。透過 Antigravity 的精確環境標定與變數注入，**目前已成功將核心阻礙全數掃除，成功實現了巡檢代理 `check-memory` 在 tmux 中的健康流轉與網關對接！**
 
+> **[B2a 重要修正]** 上述「十分穩固」的結論需降級。根據 2026-05-27 的 B2a 深度審計：
+> - B1 僅證明了**宿主機 A 路徑**（OpenClaw-A + tmux 隔離）上的單次 workflow ingress/evidence 閉環曾成功發生。
+> - 此結論**不得外推**至 Docker OpenClaw-B 路徑、雙 9router 全貌、或跨 Tailnet 可達性。
+> - Nest 2.0 實際為三雙架構（雙 OpenClaw × 雙 9router × 雙 Tailnet），B1 僅觸及其中一條路徑。
+
 ---
 
 ## 2. 當前關鍵阻塞點與系統痛點 (Blockers & Pain Points)
@@ -20,6 +25,12 @@
    * **影響**：代理在限流時需要進入冷卻等待，使得多代理任務流轉速度受限。
 2. **`clawteam spawn` 位置參數解析的易用性缺失**：
    * **痛點**：命令列在遇到自訂可執行路徑時，極易將其誤判為 `backend`。使用者必須手動在命令行中安插 `tmux` 作為佔位符，否則會觸發無效後端報錯。
+3. **`check-9router` 探針能力不足**（B2a 新增）：
+   * **痛點**：B1 時期的 `check-9router` 僅執行了 **Legacy/Basic Probe**（PID 檢查 + 基本端口回應），無法區分 9router-A (Degraded, `:20128`) 與 9router-B (Healthy, `:20129`)。因此，B1 關於路由穩固的結論需降級，**不得代表 9router 全貌**。
+   * **影響**：如不升級為 Enhanced Audit（RPC 生存心跳 + codex token 過期檢測），將無法正確評估路由平面健康度。
+4. **跨 Tailnet 可達性幻覺**（B2a 新增）：
+   * **痛點**：Shared Node 僅提供 DNS/IP 可見性，不代表實際可達。B1 觀察到的連通性僅適用於 `shrimpclan.ai@` 二代商用網內部，不代表 Tailnet 雙向打通。
+   * **影響**：在代理世界地圖/調度中，將 Shared Node「可見」誤判為「可達」將導致導航失敗。
 
 ---
 
@@ -49,6 +60,18 @@
 
 ### 建議三：優化模型分流與降級策略
 * **方案**：針對 429 Quota 痛點，可考慮在 `/home/shrimpclan_ai/.openclaw/openclaw.json` 中配置更靈活的 `9router/combo2` 自動降級閾值，或在啟動巡檢任務時，透過 `clawteam spawn --model 9router/combo2` 直接調用配額更寬鬆的備用渠道，分散 GCP 主渠道壓力。
+  > **[B2a 补充]** 降級策略應明確指向 **9router-B (`:20129`，狀態 Healthy)**，而非 9router-A (`:20128`，狀態 Degraded，codex 帳號已於 2026-05-21 過期)。兩者的區分詳見 `control-boundary-report.md` §4 Router Plane。
 
 ### 建議四：全隊伍聯合巡檢閉環測試
 * **方案**：依序啟動 `check-9router` 與 `check-a2a` 代理，協同隊長 `patrol-leader` 發送匯總報告，以完整的「聯合多兵種實戰」完成 PAIN-002 工單的最終驗證。
+
+### 建議五：建立 Enhanced Router Audit 流程（B2a 新增）
+* **方案**：淘汰舊有的 PID 檢查式 `check-9router`，建立包含以下檢查項的 Enhanced Audit 流程：
+  1. **RPC 生存心跳**：向 9router-A 與 9router-B 分別發送實際的 LLM 請求，驗證響應品質而非僅檢查 PID。
+  2. **Codex Token 過期檢測**：自動檢查 9router-A 的認證狀態，避免將 Degraded 路由認定為 Healthy。
+  3. **雙 Router 對照報告**：產出明確區分 A/B 狀態的健康度報告，取代舊有的單一「路由正常」結論。
+* **目標**：確保未來所有路由降級策略指向健康的 9router-B (`:20129`)，而非已過期的 9router-A。
+
+### 建議六：雙 OpenClaw 感知納入代理世界地圖（B2a 新增）
+* **方案**：在 `AGENTS_WORLD_MAP.md` 中明確區分 OpenClaw-A (Host, `:18800`) 與 OpenClaw-B (Docker, `:18790`) 的存在，確保代理在調度時知道自己與哪個 Gateway 通訊。
+* **目標**：避免代理將單一 Gateway 地址誤判為「唯一真實」，導致跨 OpenClaw 調度失敗。

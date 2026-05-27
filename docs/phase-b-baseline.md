@@ -8,6 +8,7 @@
 
 * **主機節點**：GCP VM `shrimp-nexus-01` (區域 `us-central1-a`)。
 * **網路通訊**：透過 Tailscale 節點 IP `100.123.6.86` 連線，支援 A2A (Agent-to-Agent) 與外部網路通訊。
+  > **[B2a 範圍註]** 上述 Tailscale IP 屬 `shrimpclan.ai@` 二代商用網原生成員。另有 `piziwei.wang@` 初代蝦網以 Shared Node 方式可見此節點，但 Shared Node **不代表可達**——詳見 `control-boundary-report.md` §5 四層可達性判定準則。
 * **執行用戶**：`shrimpclan_ai` (專屬無頭運行帳號)。
 * **環境變數修復**：
   * 已成功於 `/home/shrimpclan_ai/.bashrc` 中追加：
@@ -41,6 +42,7 @@
 * **當前運行進程**：
   * `openclaw-tui`：代理終端交互介面，顯示實時思維鏈與工具調用。
   * `openclaw-memory-pro`：基於 LanceDB 的長期記憶檢索庫，常駐後端進行語義檢索。
+  > **[B2a 架構升級]** 上述為 **OpenClaw-A（宿主機）** 的配置。Nest 2.0 同時存在 **OpenClaw-B（Docker 容器）**，容器 `openclaw-runtime`，gateway port `:18790`（host-mapped from container `:18789`）。兩者共用同一 Tailscale IP 但各自佔用不同 port，形成雙控制面並行架構。詳見 `control-boundary-report.md` §3 Docker 容器隔離邊界。
 
 ---
 
@@ -56,3 +58,34 @@
   * **看板狀態**：
     * 擁有四個預設巡檢任務。
     * 當前已成功喚醒並生成 `check-memory` 代理，並進入 Tmux 運作狀態。
+
+---
+
+## 5. B2a 重基線裁定（2026-05-27 三雙架構升級）
+
+> **[B2a 聲明]** 根據 Antigravity Opus 於 2026-05-27 的深度審計，B1 基線需升級為三雙（雙 OpenClaw × 雙 9router × 雙 Tailnet）架構描述。以下為正式重基線裁定。
+
+### 5.1 三層物理基線
+
+| 層次 | 組件 A | 組件 B | 差異 |
+|------|--------|--------|------|
+| **Runtime Plane** | OpenClaw-A (Host / `shrimpclan_ai` / `:18800`) | OpenClaw-B (Docker / `openclaw-runtime` / `:18790`) | A 負責 ClawTeam 主協調，B 負責獨立任務 |
+| **Router Plane** | 9router-A (`:20128` / 官方 Release / Degraded) | 9router-B (`:20129` / 蝦家班魔改 / Healthy) | A 的 codex 帳號已於 2026-05-21 過期；B 具 SHRIMP-HAMMER-9 增強 |
+| **Network Plane** | Tailnet `piziwei.wang@` (初代蝦網) | Tailnet `shrimpclan.ai@` (二代商用網) | Nest 2.0 原生於二代網，以 Shared Node 向初代暴露 |
+
+### 5.2 B1 證據邊界聲明
+
+上述 §1-§4 的 B1 原始基線僅覆蓋以下路徑：
+
+* ✅ **宿主機 OpenClaw-A 路徑**：`shrimpclan_ai` 用戶空間的 Gateway、CLI、Memory
+* ✅ **宿主機 tmux 隔離**：`clawteam-patrol-test3` 會話
+* ✅ **單一 9router 備用路由**：`:20129`（當時未區分 A/B）
+* ❌ **未覆蓋**：Docker OpenClaw-B、9router-A (`:20128`)、雙 Tailnet 拓樸、Shared Node 治理規則
+
+### 5.3 B1 過度概括修正
+
+`phase-b-findings-summary.md` §1 原文：
+> 「Nest 2.0 上的 ClawTeam 控制平面與 OpenClaw 引擎架構十分穩固」
+
+此結論需降級為：
+> 「B1 僅證明了**宿主機 A 路徑**上的 ClawTeam 控制面與 OpenClaw-A 引擎曾成功閉環。此結論不得外推至 Docker 路徑、雙 9router 全貌、或跨 Tailnet 可達性。」
